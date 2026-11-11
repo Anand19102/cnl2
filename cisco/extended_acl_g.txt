@@ -1,0 +1,241 @@
+================================================================================
+EXPERIMENT: IMPLEMENTATION OF EXTENDED ACCESS CONTROL LIST (ACL) IN CISCO PACKET TRACER
+================================================================================
+
+--------------------------------------------------------------------------------
+1. EXAM-READY ALGORITHM
+--------------------------------------------------------------------------------
+Step 1: Start Cisco Packet Tracer and assemble the hardware devices:
+        - 1 Cisco Router (model 2811)
+        - 2 Cisco Switches (model 2950-24: CCF Switch and Server Switch)
+        - 2 Generic PCs (PC1 and PC2 representing the Central Computing Facility - CCF)
+        - 1 Multi-service Server (hosting HTTP, HTTPS, FTP, DNS)
+Step 2: Connect devices using Copper Straight-Through cables:
+        - CCF side: Connect PC1 (Fa0) and PC2 (Fa0) to CCF Switch ports (Fa0/2, Fa0/3).
+          Connect CCF Switch (Fa0/1) to Router FastEthernet0/0.
+        - Server side: Connect Server (Fa0) to Server Switch port (Fa0/2).
+          Connect Server Switch (Fa0/1) to Router FastEthernet0/1.
+Step 3: Perform subnet calculations for the Class B network 140.80.0.0/16 to create 
+        at least 20 subnets:
+        - Borrow 5 host bits: New prefix = /21, Subnet Mask = 255.255.248.0.
+        - Block size = 8 in the third octet.
+        - Subnet 4 (CCF): 140.80.24.0/21 (Gateway: 140.80.24.1).
+        - Subnet 16 (Server Farm): 140.80.120.0/21 (Gateway: 140.80.120.1).
+        - 7th address of Subnet 16 (Registration Server): 140.80.120.6.
+Step 4: Configure IP parameters on end hosts:
+        - PC1: IP 140.80.24.2, Mask 255.255.248.0, Gateway 140.80.24.1, DNS 140.80.120.6
+        - PC2: IP 140.80.24.3, Mask 255.255.248.0, Gateway 140.80.24.1, DNS 140.80.120.6
+        - Server: IP 140.80.120.6, Mask 255.255.248.0, Gateway 140.80.120.1
+Step 5: Configure Router interfaces via CLI:
+        - FastEthernet0/0: IP 140.80.24.1 255.255.248.0, issue 'no shutdown'.
+        - FastEthernet0/1: IP 140.80.120.1 255.255.248.0, issue 'no shutdown'.
+Step 6: Enable multi-service features on the Server:
+        - Turn ON HTTP, HTTPS, FTP (username/password: cisco/cisco), and DNS.
+        - Add a DNS Type 'A' record: hackathon.col.edu -> 140.80.120.6.
+Step 7: Pre-ACL Baseline Verification:
+        - From PC1/PC2, ping the Server (140.80.120.6).
+        - Access http://140.80.120.6 and https://140.80.120.6 in the web browser.
+        - Confirm all baseline services function properly prior to ACL filtering.
+Step 8: Configure Extended Access Control List 100 on the Router:
+        - Rule 1: Deny HTTP (port 80) from CCF subnet to the Server:
+          access-list 100 deny tcp 140.80.24.0 0.0.7.255 host 140.80.120.6 eq 80
+        - Rule 2: Deny HTTPS (port 443) from CCF subnet to the Server:
+          access-list 100 deny tcp 140.80.24.0 0.0.7.255 host 140.80.120.6 eq 443
+        - Rule 3: Permit all other remaining IP traffic:
+          access-list 100 permit ip any any
+Step 9: Apply the ACL inbound on the source-facing interface:
+        - Enter interface FastEthernet0/0.
+        - Bind the ACL: 'ip access-group 100 in'.
+Step 10: Verify ACL operation and selective filtering from CCF hosts:
+         - Web browser tests (HTTP and HTTPS): Connection fails/times out.
+         - ICMP test: 'ping 140.80.120.6' succeeds.
+         - FTP test: 'ftp 140.80.120.6' logs in and executes 'dir' successfully.
+         - Verify match counters on router using 'show access-lists'.
+Step 11: Save configurations using 'copy running-config startup-config'.
+Step 12: Stop.
+
+
+--------------------------------------------------------------------------------
+2. ESSENTIAL THEORY & CONCEPTS
+--------------------------------------------------------------------------------
+A. The Problem Scenario:
+The college hackathon registration is closed. The computer science department 
+requires that students in the Central Computing Facility (CCF) be blocked from 
+accessing the registration website (HTTP/HTTPS). However, the exact same server 
+hosts vital infrastructure services (FTP file repository, DNS name resolution, 
+and ICMP diagnostic reachability) that must remain accessible to CCF.
+
+B. Why Standard ACL Fails Here:
+- Standard ACLs (IDs 1-99) only evaluate the Source IP address.
+- If a Standard ACL denies traffic from the CCF subnet toward the server, it drops 
+  ALL IP packets regardless of service—blocking HTTP, HTTPS, FTP, DNS, and Ping.
+- Extended ACLs (IDs 100-199) evaluate Source IP, Destination IP, Protocol (TCP, 
+  UDP, ICMP), and Layer 4 Port Numbers (e.g., port 80, 443, 21, 53), enabling 
+  selective service filtering.
+
+C. Placement of ACLs (Golden Rule):
+- Standard ACL: Placed as CLOSE TO THE DESTINATION as possible (to avoid blocking 
+  traffic to unintended destinations).
+- Extended ACL: Placed as CLOSE TO THE SOURCE as possible (applied inbound on 
+  Router Fa0/0). This eliminates unwanted traffic immediately at the network edge, 
+  conserving router CPU and internal link bandwidth.
+
+D. Subnetting & Wildcard Mask Calculations:
+- Major Network: 140.80.0.0 (Class B default mask /16 = 255.255.0.0).
+- Requirement: At least 20 subnets.
+  * 2^s >= 20  =>  s = 5 bits borrowed.
+  * New prefix = 16 + 5 = /21.
+  * Subnet Mask: 11111111.11111111.11111000.00000000 = 255.255.248.0.
+  * Block size in 3rd octet = 256 - 248 = 8.
+- Calculating Subnet Network Addresses (Subnet K starts at (K - 1) * block size):
+  * CCF Subnet (4th subnet): K = 4  =>  (4 - 1) * 8 = 24  =>  140.80.24.0/21.
+  * Server Subnet (16th subnet): K = 16  =>  (16 - 1) * 8 = 120  =>  140.80.120.0/21.
+- Calculating Host IP (Counting network ID as 1st address):
+  * 1st address: 140.80.120.0 (Network ID)
+  * 2nd address: 140.80.120.1 (Default Gateway)
+  * ...
+  * 7th address: 140.80.120.6 (Server IP)
+- Wildcard Mask Calculation:
+  * Wildcard Mask = 255.255.255.255 - Subnet Mask
+  * 255.255.255.255 - 255.255.248.0 = 0.0.7.255
+  * Binary 0 = Must match exact bit; Binary 1 (7.255) = Wildcard / Ignore bits.
+  * 140.80.24.0 0.0.7.255 accurately covers the IP range 140.80.24.0 to 140.80.31.255.
+
+E. The Critical "Permit IP Any Any" Rule:
+Every Cisco ACL has an invisible, unwritten "implicit deny any" at the bottom. 
+If we only type the two deny statements for ports 80 and 443, all other traffic 
+(ping, DNS, FTP) will hit the implicit deny and be dropped. Thus, rule 3 
+('permit ip any any') is mandatory to allow non-web traffic.
+
+
+--------------------------------------------------------------------------------
+3. TOPOLOGY & ADDRESSING TABLE
+--------------------------------------------------------------------------------
+Topology Diagram:
+[PC1: 140.80.24.2]    [PC2: 140.80.24.3]
+        \                /
+         [ CCF Switch ]
+               |
+         (Fa0/0: 140.80.24.1) [Inbound ACL 100]
+            [ Router 2811 ]
+         (Fa0/1: 140.80.120.1)
+               |
+        [ Server Switch ]
+               |
+     [ Server: 140.80.120.6 ]
+     (HTTP, HTTPS, FTP, DNS)
+
+Master Addressing Table (All Subnet Masks: 255.255.248.0 / Wildcard: 0.0.7.255):
++---------+-----------------+----------------+-----------------+----------------------+
+| Device  | Interface       | IP Address     | Subnet Mask     | Gateway / Role       |
++---------+-----------------+----------------+-----------------+----------------------+
+| Router  | FastEthernet0/0 | 140.80.24.1    | 255.255.248.0   | CCF LAN Gateway      |
+| Router  | FastEthernet0/1 | 140.80.120.1   | 255.255.248.0   | Server LAN Gateway   |
+| PC1     | FastEthernet0   | 140.80.24.2    | 255.255.248.0   | GW: 140.80.24.1      |
+| PC2     | FastEthernet0   | 140.80.24.3    | 255.255.248.0   | GW: 140.80.24.1      |
+| Server  | FastEthernet0   | 140.80.120.6   | 255.255.248.0   | GW: 140.80.120.1     |
++---------+-----------------+----------------+-----------------+----------------------+
+
+
+--------------------------------------------------------------------------------
+4. EXACT CLI CONFIGURATION SCRIPT
+--------------------------------------------------------------------------------
+
+Router> enable
+Router# configure terminal
+Router(config)# hostname Router2811
+
+! 1. CCF LAN Interface Configuration
+Router2811(config)# interface fastEthernet 0/0
+Router2811(config-if)# description Link to CCF Subnet
+Router2811(config-if)# ip address 140.80.24.1 255.255.248.0
+Router2811(config-if)# no shutdown
+Router2811(config-if)# exit
+
+! 2. Server LAN Interface Configuration
+Router2811(config)# interface fastEthernet 0/1
+Router2811(config-if)# description Link to Server Farm Subnet
+Router2811(config-if)# ip address 140.80.120.1 255.255.248.0
+Router2811(config-if)# no shutdown
+Router2811(config-if)# exit
+
+! 3. Extended Access Control List 100 Configuration
+! Block HTTP (Port 80) from CCF subnet to Server
+Router2811(config)# access-list 100 deny tcp 140.80.24.0 0.0.7.255 host 140.80.120.6 eq 80
+
+! Block HTTPS (Port 443) from CCF subnet to Server
+Router2811(config)# access-list 100 deny tcp 140.80.24.0 0.0.7.255 host 140.80.120.6 eq 443
+
+! Permit all other IP traffic (FTP, DNS, ICMP, etc.)
+Router2811(config)# access-list 100 permit ip any any
+
+! 4. Apply ACL Inbound on CCF Gateway Interface
+Router2811(config)# interface fastEthernet 0/0
+Router2811(config-if)# ip access-group 100 in
+Router2811(config-if)# exit
+Router2811(config)# exit
+
+! 5. Persist Configuration to NVRAM
+Router2811# copy running-config startup-config
+
+
+--------------------------------------------------------------------------------
+5. VERIFICATION, TROUBLESHOOTING & RESULT INTERPRETATION
+--------------------------------------------------------------------------------
+A. CLI Verification Commands:
+- 'show access-lists' or 'show ip access-list':
+    Displays rule definitions and active match packet counters:
+    Extended IP access list 100
+        10 deny tcp 140.80.24.0 0.0.7.255 host 140.80.120.6 eq www (matches recorded)
+        20 deny tcp 140.80.24.0 0.0.7.255 host 140.80.120.6 eq 443 (matches recorded)
+        30 permit ip any any (matches recorded)
+- 'show ip interface fastEthernet 0/0':
+    Confirms interface binding:
+    Inbound access list is 100
+    Outgoing access list is not set
+
+B. End-Host Verification Matrix:
++-------------------+---------------+--------------------+------------------------------------+
+| Protocol / Port   | Client Action | Expected Result    | Technical Reason                   |
++-------------------+---------------+--------------------+------------------------------------+
+| HTTP (TCP 80)     | Web Browser   | Connection Timed   | Dropped by ACL Rule 10             |
+|                   | http://...    | Out (Blocked)      |                                    |
+| HTTPS (TCP 443)   | Web Browser   | Connection Timed   | Dropped by ACL Rule 20             |
+|                   | https://...   | Out (Blocked)      |                                    |
+| ICMP (Ping)       | ping ...      | SUCCESS (!!!!!)    | Matches Rule 30 (permit ip any any)|
+| FTP (TCP 21)      | ftp ...       | SUCCESS (dir works)| Matches Rule 30 (permit ip any any)|
+| DNS (UDP 53)      | URL lookup    | SUCCESS (Resolved) | Matches Rule 30 (permit ip any any)|
++-------------------+---------------+--------------------+------------------------------------+
+
+
+--------------------------------------------------------------------------------
+6. TOP VIVA QUESTIONS & INSTANT BULLET ANSWERS
+--------------------------------------------------------------------------------
+Q1: What is the primary difference between Standard and Extended ACLs?
+A1: Standard ACLs (IDs 1-99) filter traffic based solely on the Source IP address. 
+    Extended ACLs (IDs 100-199) filter based on Source IP, Destination IP, Protocol 
+    (TCP, UDP, ICMP), and Layer 4 Port numbers.
+
+Q2: Where should Extended ACLs be positioned in a network, and why?
+A2: Extended ACLs should be placed as close to the traffic source as possible (e.g., 
+    inbound on Fa0/0). This filters out prohibited traffic immediately at the network 
+    ingress, avoiding wasted transmission over router interconnects and preserving CPU cycles.
+
+Q3: Why was the command 'access-list 100 permit ip any any' necessary?
+A3: Cisco ACLs contain an unwritten implicit deny ('deny ip any any') at the end of every 
+    list. Without an explicit permit statement, all non-HTTP/HTTPS traffic (such as FTP, 
+    DNS, and Ping) would be dropped automatically.
+
+Q4: How was the wildcard mask 0.0.7.255 derived for a /21 prefix?
+A4: A /21 subnet mask has 21 network bits: 255.255.248.0. 
+    Wildcard Mask = 255.255.255.255 - Subnet Mask
+    255.255.255.255 - 255.255.248.0 = 0.0.7.255.
+
+Q5: In the command 'access-list 100 deny tcp ... eq 80', what does 'eq' represent?
+A5: 'eq' stands for 'equal to' and specifies the exact Layer 4 TCP destination port 
+    number to be matched (Port 80 for HTTP, Port 443 for HTTPS).
+
+Q6: In an Extended ACL statement, what does the keyword 'host' signify?
+A6: The keyword 'host' indicates that the rule targets a single, specific 32-bit IP address 
+    rather than a subnet, which is equivalent to using a wildcard mask of 0.0.0.0.
+================================================================================

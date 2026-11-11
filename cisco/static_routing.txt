@@ -1,0 +1,247 @@
+================================================================================
+EXPERIMENT: STATIC ROUTING CONFIGURATION IN CISCO PACKET TRACER
+================================================================================
+
+--------------------------------------------------------------------------------
+1. EXAM-READY ALGORITHM
+--------------------------------------------------------------------------------
+Step 1: Start and launch Cisco Packet Tracer.
+Step 2: Place the required network hardware:
+        - 4 Cisco Routers (2621A, 2501A, 2501B, 2501C)
+        - 2 End-user PCs (PC-B on LAN 30.0, PC-C on LAN 50.0)
+Step 3: Power off routers 2501A, 2501B, and 2501C, install the serial interface 
+        modules (WIC-2T) into slot 0, and power the routers back on.
+Step 4: Establish physical cable connections:
+        - Use Copper Crossover cables for router-to-router Ethernet (2621A to 2501A) 
+          and router-to-PC connections.
+        - Use Serial DCE/DTE cables for inter-router WAN links (2501A-2501B and 
+          2501B-2501C).
+Step 5: Assign IP addresses, subnet masks (/24: 255.255.255.0), and default gateways 
+        on both PCs.
+Step 6: Enter Global Configuration Mode on each router and configure the IP address 
+        and subnet mask for each attached interface.
+Step 7: Execute 'no shutdown' on all configured interfaces to enable them.
+Step 8: Set the clock rate to 64000 on the DCE serial interfaces (2501A Se0/0 and 
+        2501B Se0/1).
+Step 9: Calculate required static routes for each router using the formula:
+        Required Routes = Total Subnets (5) - Directly Connected Subnets.
+Step 10: Configure static routes on all routers using the command:
+         ip route <destination_network> <subnet_mask> <next_hop_ip>
+         Ensure that the next-hop IP belongs to the directly connected neighbor.
+Step 11: Save running configurations to NVRAM using 'copy running-config startup-config'.
+Step 12: Verify routing table entries using 'show ip route' to ensure all 5 subnets 
+         are present (marked with 'C' for connected and 'S' for static).
+Step 13: Test end-to-end bidirectional reachability using 'ping'. Verify that ICMP 
+         Echo Replies are received successfully.
+Step 14: Stop.
+
+
+--------------------------------------------------------------------------------
+2. ESSENTIAL THEORY & CONCEPTS
+--------------------------------------------------------------------------------
+A. What is Static Routing?
+Static routing is the manual entry of network paths into a router's routing table 
+using the 'ip route' command.
+- Control vs. Overhead: Provides complete control over the network path with zero 
+  CPU, RAM, or bandwidth overhead (no periodic update packets sent).
+- Failure Handling: Static routes do not adapt to topological changes. If a link 
+  fails, the route remains in the table until manually cleared or until the egress 
+  interface goes down.
+
+B. The Next-Hop Rule:
+Syntax:
+  ip route [destination_network] [subnet_mask] [next_hop_ip]
+
+- Rule: The next_hop_ip MUST belong to a directly connected network link.
+- Common Trap: Never provide your own local interface IP address. The next hop is 
+  always the neighboring device's interface IP on the shared link.
+
+C. Administrative Distance (AD):
+Administrative Distance is the measure of trustworthiness of a routing information 
+source (ranges from 0 to 255; lower value means higher priority):
+- Directly Connected (C) : 0
+- Static Route (S)       : 1
+- EIGRP                  : 90
+- OSPF                   : 110
+- RIP                    : 120
+- Metric for Static Route: 0 (represented as [1/0] in the routing table)
+
+D. Route Calculation:
+- Total Subnets in Network: 5 (10.0, 20.0, 30.0, 40.0, 50.0)
+- 2621A : 1 connected -> Needs 4 static routes
+- 2501A : 2 connected -> Needs 3 static routes
+- 2501B : 3 connected -> Needs 2 static routes
+- 2501C : 2 connected -> Needs 3 static routes
+- Total static routes entered across network = 12
+
+
+--------------------------------------------------------------------------------
+3. TOPOLOGY & ADDRESSING TABLE
+--------------------------------------------------------------------------------
+Topology Layout:
+[2621A] (Fa0/0: 172.16.10.1)
+   |  [172.16.10.0/24] (Copper Crossover)
+[2501A] (Fa0/0: 172.16.10.2)
+        (Se0/0: 172.16.20.1 - DCE, clock rate 64000)
+   |  [172.16.20.0/24] (Serial Link)
+[2501B] (Se0/0: 172.16.20.2 - DTE)
+        (Fa0/0: 172.16.30.1) ------> [PC-B: 172.16.30.2 | GW: 172.16.30.1]
+        (Se0/1: 172.16.40.1 - DCE, clock rate 64000)
+   |  [172.16.40.0/24] (Serial Link)
+[2501C] (Se0/0: 172.16.40.2 - DTE)
+        (Fa0/0: 172.16.50.1) ------> [PC-C: 172.16.50.2 | GW: 172.16.50.1]
+
+Interface Table (All masks: 255.255.255.0):
++---------+-----------------+---------------+------------------------------------+
+| Device  | Interface       | IP Address    | Purpose / Link Type                |
++---------+-----------------+---------------+------------------------------------+
+| 2621A   | FastEthernet0/0 | 172.16.10.1   | LAN link to 2501A                  |
+| 2501A   | FastEthernet0/0 | 172.16.10.2   | LAN link to 2621A                  |
+|         | Serial0/0       | 172.16.20.1   | WAN to 2501B (DCE, Clock: 64000)   |
+| 2501B   | Serial0/0       | 172.16.20.2   | WAN to 2501A (DTE)                 |
+|         | FastEthernet0/0 | 172.16.30.1   | Gateway for PC-B                   |
+|         | Serial0/1       | 172.16.40.1   | WAN to 2501C (DCE, Clock: 64000)   |
+| 2501C   | Serial0/0       | 172.16.40.2   | WAN to 2501B (DTE)                 |
+|         | FastEthernet0/0 | 172.16.50.1   | Gateway for PC-C                   |
+| PC-B    | FastEthernet0   | 172.16.30.2   | Host on LAN 30.0 (GW: 172.16.30.1) |
+| PC-C    | FastEthernet0   | 172.16.50.2   | Host on LAN 50.0 (GW: 172.16.50.1) |
++---------+-----------------+---------------+------------------------------------+
+
+
+--------------------------------------------------------------------------------
+4. CLI CONFIGURATION SCRIPT
+--------------------------------------------------------------------------------
+
+! ========================
+! ROUTER 1: 2621A
+! ========================
+Router> enable
+Router# configure terminal
+Router(config)# hostname 2621A
+
+2621A(config)# interface fastEthernet 0/0
+2621A(config-if)# ip address 172.16.10.1 255.255.255.0
+2621A(config-if)# no shutdown
+2621A(config-if)# exit
+
+! 4 Static Routes pointing to neighbor 2501A
+2621A(config)# ip route 172.16.20.0 255.255.255.0 172.16.10.2
+2621A(config)# ip route 172.16.30.0 255.255.255.0 172.16.10.2
+2621A(config)# ip route 172.16.40.0 255.255.255.0 172.16.10.2
+2621A(config)# ip route 172.16.50.0 255.255.255.0 172.16.10.2
+2621A(config)# exit
+2621A# copy running-config startup-config
+
+! ========================
+! ROUTER 2: 2501A
+! ========================
+Router> enable
+Router# configure terminal
+Router(config)# hostname 2501A
+
+2501A(config)# interface fastEthernet 0/0
+2501A(config-if)# ip address 172.16.10.2 255.255.255.0
+2501A(config-if)# no shutdown
+2501A(config-if)# exit
+
+2501A(config)# interface serial 0/0
+2501A(config-if)# ip address 172.16.20.1 255.255.255.0
+2501A(config-if)# clock rate 64000
+2501A(config-if)# no shutdown
+2501A(config-if)# exit
+
+! 3 Static Routes pointing rightward to 2501B
+2501A(config)# ip route 172.16.30.0 255.255.255.0 172.16.20.2
+2501A(config)# ip route 172.16.40.0 255.255.255.0 172.16.20.2
+2501A(config)# ip route 172.16.50.0 255.255.255.0 172.16.20.2
+2501A(config)# exit
+2501A# copy running-config startup-config
+
+! ========================
+! ROUTER 3: 2501B
+! ========================
+Router> enable
+Router# configure terminal
+Router(config)# hostname 2501B
+
+2501B(config)# interface serial 0/0
+2501B(config-if)# ip address 172.16.20.2 255.255.255.0
+2501B(config-if)# no shutdown
+2501B(config-if)# exit
+
+2501B(config)# interface fastEthernet 0/0
+2501B(config-if)# ip address 172.16.30.1 255.255.255.0
+2501B(config-if)# no shutdown
+2501B(config-if)# exit
+
+2501B(config)# interface serial 0/1
+2501B(config-if)# ip address 172.16.40.1 255.255.255.0
+2501B(config-if)# clock rate 64000
+2501B(config-if)# no shutdown
+2501B(config-if)# exit
+
+! 2 Static Routes (Left to 2501A, Right to 2501C)
+2501B(config)# ip route 172.16.10.0 255.255.255.0 172.16.20.1
+2501B(config)# ip route 172.16.50.0 255.255.255.0 172.16.40.2
+2501B(config)# exit
+2501B# copy running-config startup-config
+
+! ========================
+! ROUTER 4: 2501C
+! ========================
+Router> enable
+Router# configure terminal
+Router(config)# hostname 2501C
+
+2501C(config)# interface serial 0/0
+2501C(config-if)# ip address 172.16.40.2 255.255.255.0
+2501C(config-if)# no shutdown
+2501C(config-if)# exit
+
+2501C(config)# interface fastEthernet 0/0
+2501C(config-if)# ip address 172.16.50.1 255.255.255.0
+2501C(config-if)# no shutdown
+2501C(config-if)# exit
+
+! 3 Static Routes pointing leftward to 2501B
+2501C(config)# ip route 172.16.10.0 255.255.255.0 172.16.40.1
+2501C(config)# ip route 172.16.20.0 255.255.255.0 172.16.40.1
+2501C(config)# ip route 172.16.30.0 255.255.255.0 172.16.40.1
+2501C(config)# exit
+2501C# copy running-config startup-config
+
+
+--------------------------------------------------------------------------------
+5. VERIFICATION, TROUBLESHOOTING & RESULTS
+--------------------------------------------------------------------------------
+A. Routing Table Check:
+Run on privileged EXEC:
+2621A# show ip route
+
+Expected Status:
+C    172.16.10.0/24 is directly connected, FastEthernet0/0
+S    172.16.20.0/24 [1/0] via 172.16.10.2
+S    172.16.30.0/24 [1/0] via 172.16.10.2
+S    172.16.40.0/24 [1/0] via 172.16.10.2
+S    172.16.50.0/24 [1/0] via 172.16.10.2
+
+B. Troubleshooting the "Missing Connected Route":
+- If an Ethernet interface on 2501B or 2501C shows down/down in 'show ip interface brief', 
+  its connected subnet will not appear in the routing table.
+- Fix: Ensure an active device (PC) is connected to the interface using a copper 
+  crossover cable. The link layer must detect a carrier signal to mark the port up.
+
+C. Connectivity Verification:
+Run ping test from 2621A:
+2621A# ping 172.16.50.1
+
+Output:
+Sending 5, 100-byte ICMP Echos to 172.16.50.1, timeout is 2 seconds:
+.!!!!
+Success rate is 80 percent (4/5)
+
+- '!' indicates an ICMP Echo Reply was successfully received.
+- '.' indicates Request Timed Out (initial timeout caused by ARP resolution delay).
+- A second ping yields '!!!!!' (100% success rate), confirming full end-to-end 
+  bidirectional routing.
+================================================================================

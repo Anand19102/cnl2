@@ -1,0 +1,542 @@
+0:01
+Hello all, welcome to this video on
+0:04
+network lab. Today I'll be talking about
+0:06
+implementation of extended ACL in Cisco
+0:09
+Packet Racer.
+0:14
+Hackathon registration has closed and
+0:16
+the CSSE department wants students in
+0:19
+the computing facility blocked from the
+0:21
+registration website. The catch the same
+0:24
+server runs other services that must be
+0:26
+keep kept working. We solve it with
+0:29
+subnetting and an extended access
+0:31
+control list. The network is 140.80.0.0
+0:36
+with 20 subnets. The CCF is in the
+0:40
+fourth subnet and the website is on the
+0:42
+seventh address of the 16th subnet. We
+0:45
+must block the website from CCF and
+0:47
+nothing else.
+0:51
+Here is the goal. Five kinds of traffic
+0:53
+leaves a CCF computer. HTTPS and HTTP
+0:58
+must stop at the router. Ping, FTP, and
+1:01
+DNS must pass. One path, five services,
+1:05
+and one rule that tells them apart.
+IP addresses and subnets
+1:10
+An IPv4 address has 32 bits, a network
+1:13
+part and a host part, like a
+1:14
+neighborhood and a house number. Class A
+1:17
+is 1 to 126 with 127 reserved for loop
+1:20
+back. Class B is 128 to 191 and class C
+1:25
+is 192 to 223. Ours start with 140. So
+1:31
+it is class B with a default / 16. We
+1:35
+subnet to keep the broadcasts local.
+1:38
+Apply security per subnet and match
+1:40
+address blocks to department sizes.
+Borrowing bits and key formulas
+1:45
+We need 20 subnets. 2 to the power of 5
+1:49
+is 32. So we borrow five bits. The
+1:51
+prefix is /21. The mask is
+1:54
+255.255.248.0.
+1:58
+Each subnet holds 248 addresses. And the
+2:02
+block size is 8. Three formulas to
+2:05
+remember. Subnet K starts at K minus 1 *
+2:09
+the block size. Usable hosts are 2 to
+2:13
+the H minus 2. And the wild card mask is
+2:16
+255.255.255.
+2:18
+255.255
+2:20
+minus the subnet mask.
+ACL
+2:27
+An access control list is a guest list
+2:30
+for packets. Rules run top to bottom and
+2:33
+the first match wins and an implicit
+2:35
+deny at the end drops everything else.
+2:38
+Standard ACL 1 to9 checks only the
+2:40
+source. The extended ACL 100 to 199
+2:44
+checks protocol source destination and
+2:46
+port and goes near the source.
+Access list
+2:51
+A standard line names only a source. So
+2:54
+it would block the whole server. An
+2:56
+extended line adds protocol destination
+2:59
+and port.
+3:01
+So it will be to deny TCP from
+3:05
+140.80.24.0/21
+3:08
+to host 140.80.120.6.
+3:11
+6 equal to port 80.
+Wildcards, ports and named ACLs
+3:16
+In a wild card mask, 0 means the bit
+3:19
+must match and 1 means ignore it. So
+3:22
+0.07.255
+3:24
+matches 140.80.24.0
+3:27
+through 140.80.31.255.
+3:31
+The whole CCF subnet host means one
+3:34
+address and any means every address.
+3:37
+Port 80 is HTTP and 443 is HTTPS. We use
+3:42
+the numbered ACL10.
+IP access group
+3:46
+A list does nothing until it is applied.
+3:49
+In interface mode, type IP access group
+3:52
+the ACL number and then in or out. We
+3:55
+apply ours inbound on the interface
+3:57
+facing the source. That is all the
+4:00
+theory. Now we build it.
+Step 1 - Calculate the addresses
+4:03
+Step one for CCF 4 - 1 is 3 * 8 is 24.
+4:10
+So 140.80.24.0/21.
+4:13
+For the server subnet 15 * 8 is 120. So
+4:18
+140.80.120.0/21.
+4:21
+Counting the network address as the
+4:23
+first
+4:25
+7th address is 6. So 140.80.120.6.
+4:29
+The wild card mask is 0.07.255.
+4:32
+255.
+Step 2 - Place and cable the devices
+4:35
+Step two, one 281 router, two 295024
+4:40
+switches,
+4:41
+two PCs and one server joined by copper
+4:44
+straight through cables. Since every
+4:46
+link connects different device types,
+4:48
+the table list each port.
+Step 3 - Addresses and router set up
+4:54
+Step three, give the host static
+4:57
+addresses with mask 255.255.248.0.
+5:01
+0 PC1.2 PC2.3
+5:06
+server 140.80.120.6
+5:09
+on the router FA00 is 140.80.24.1
+5:14
+and FA01 is 140.80.120.1
+5:18
+type no shutdown on both and check they
+5:21
+show up and up.
+Step 4 - Turn on the server services
+5:24
+Step four, on the server, turn on HTTP
+5:27
+and HTTPS, the website we will block,
+5:30
+plus FTP and DNS, which must keep
+5:33
+working.
+5:36
+Step five, test before you block. Ping
+Step 5 - Test before adding ACL
+5:40
+the server and open the website. Both
+5:43
+must work before you add the ACL. So any
+5:46
+later failure can only come from the
+5:49
+ACL.
+5:52
+Step six. Rule one denies HTTP port 80.
+Step 6 - Create and apply ACL
+5:56
+Rule two denies HTTPS port 443. Rule
+6:01
+three permits everything else. What if
+6:04
+rule three was missing? The implicit
+6:07
+deny would block everything including
+6:10
+the other services. We apply the list
+6:12
+inbound on FA00 closest to the source.
+6:19
+Step seven, B then verify from CCF the
+Step 7 - Verify the result
+6:23
+website fails while ping FTP still works
+6:27
+and other subnets can also reach the
+6:30
+website. Use show access list to see
+6:34
+match counters in short /21 addresses by
+6:38
+block size and extended ACL by port and
+6:41
+a final permit.
+Demo
+6:46
+Now we'll see a demo of the same.
+6:50
+We place the A21 router,
+6:56
+two switches of type 295024,
+7:01
+two PCs
+7:04
+and the server.
+7:09
+Now we connect the fast Ethernet
+7:14
+zero of PC to two of the switch
+7:18
+zero of PC
+7:21
+to three of the switch. Then
+7:25
+fa01 to the router
+7:30
+faster than at 01 to
+7:34
+its corresponding interface
+7:40
+01 to zero.
+7:45
+Then we'll click on the PC.
+7:50
+First of all, we need to change their
+7:52
+display names. So, this PC will be
+7:54
+called PC2
+7:57
+and the other PC will be PC1.
+8:03
+After that, we'll start with the
+8:05
+configuration
+8:07
+which will include the IP configuration
+8:09
+where we set the IP address, mask, and
+8:12
+the gateway
+8:15
+140.80.24.2
+8:17
+mask 255.255 255.248.0
+8:22
+its gateway
+8:24
+24.1.
+8:26
+Then we do the same for the second PC
+8:31
+taking its IP configuration.
+8:35
+Its IP will be 140.80.24.3
+8:38
+24.3 with the same mask
+8:45
+and its gateway will be 140.80.24.1.
+8:54
+Then we change the name of the switch.
+8:57
+Since it belongs to the CCF section,
+9:00
+we'll name it as CCF switch.
+9:08
+We change both the display name and the
+9:10
+host name.
+9:16
+Next, we configure
+9:18
+the router.
+9:22
+We'll change its name.
+9:28
+We also change the name of the switch
+9:31
+there which belongs to the server side.
+9:33
+So it will be the server side switch.
+9:37
+Here also we change both the display
+9:40
+name and the host name.
+9:46
+Now we configure the server. The server
+9:48
+name will be server.
+9:54
+Then we go to its IP configuration
+9:57
+where its IP will be 140.80.120.6.
+10:02
+The mask will be the same
+10:09
+and its gateway will be 120.1.
+10:19
+Now we will
+10:23
+configure the router.
+10:29
+Going to the CLI we type enable
+10:33
+then conf t then we start with the
+10:37
+interfaces. First one will be fast
+10:40
+ethernet 000.
+10:45
+We give a brief description about what
+10:47
+it is. Then we give its IP address and
+10:50
+mask.
+10:54
+Then we give the command no shutdown.
+10:59
+Then we type in
+11:02
+exit so that we can set the next
+11:05
+interface which is faster than net01.
+11:10
+There also we repeat these steps. We
+11:12
+give a description about the interface.
+11:17
+Then we set its IP address and subnet
+11:20
+mask.
+11:22
+Then we give the no shutdown command.
+11:30
+Then we exit.
+11:41
+Next, we'll go to the server,
+11:45
+go to the services, and check if all
+11:47
+these are on. HTTP, HTTPS, FTP, and DNS.
+11:53
+So if it's not on we set it as on and we
+11:56
+give a record here hackathon.col.edu
+11:59
+with the address of the server which is
+12:03
+140.80.120.6
+12:12
+which is a type a record that is an
+12:15
+address record.
+12:18
+Then we go to PC1.
+12:22
+There
+12:24
+we'll change the DNS server IP which is
+12:27
+now 140.80.120.6.
+12:30
+We do the same in PC2
+12:40
+140.80
+12:42
+120.6 Six.
+12:54
+Next we
+12:59
+try to ping the server ping 140.80.120.6
+13:04
+Six.
+13:16
+So the ping is successful. Next we'll
+13:20
+click on the web browser and check if
+13:22
+the website is available or not cuz we
+13:26
+have enabled both HTTP and HTTPS.
+13:31
+So we'll check both of them.
+13:34
+We'll give in http
+13:38
+col/ sl 140.80120.6.
+13:48
+So this is what is loaded. We'll repeat
+13:50
+it with https.
+13:54
+So we see the same one.
+13:57
+Now we'll create the rules the ACL rules
+14:02
+and then apply to the interface and do
+14:04
+the same test to see if the website is
+14:08
+still available.
+14:10
+Now we'll go to the config mode.
+14:14
+There we give the access list
+14:21
+for both HTTP and HTTPS.
+14:32
+After that we need to apply it to the
+14:35
+particular interface which is for fastet
+14:38
+00.
+14:54
+We do some checks on the router before
+14:57
+actually
+14:59
+visiting the website. We check the
+15:02
+interface brief to see if all the
+15:04
+interfaces are up and we also see the
+15:07
+access list using show access list.
+15:13
+Also we do
+15:15
+the same on the particular interface
+15:17
+also. So all of them are successfully
+15:21
+seen. Now we try to
+15:26
+access the websites.
+15:50
+http col//140.80.120.6.
+16:00
+So you can see it's not available.
+16:03
+We give it as https.
+16:06
+Still it is not loading because it has
+16:10
+been blocked.
+16:12
+But if we check any of the other
+16:14
+services, we should be able to get them.
+16:16
+For example, if we try pinging or if we
+16:19
+try FTP, it should happen. So we'll try
+16:22
+pinging to the same server address
+16:24
+again.
+16:28
+You'll see that the ping is successful.
+16:31
+Now we'll check the FTP.
+16:36
+FTP the corresponding server address. We
+16:40
+give a username Cisco a password again
+16:43
+Cisco and we give the command diir.
+16:48
+All the directories will be listed.
+16:52
+So FTP also works in this.
+References
+17:00
+These are the references I used for the
+17:03
+preparation of this material.
+17:08
+That's all for now. Thank you for
+17:10
+watching.
+

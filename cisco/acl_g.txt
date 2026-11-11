@@ -1,0 +1,291 @@
+================================================================================
+EXPERIMENT: IMPLEMENTATION OF STANDARD ACCESS CONTROL LIST (ACL) IN CISCO PACKET TRACER
+================================================================================
+
+--------------------------------------------------------------------------------
+1. EXAM-READY ALGORITHM
+--------------------------------------------------------------------------------
+Step 1: Start Cisco Packet Tracer and assemble the required hardware topology:
+        - 3 Cisco Routers (model 2811: Lab_A, Lab_B, Lab_C)
+        - 3 Cisco Switches (model 2950-24)
+        - 5 Generic PCs:
+            * Host A: PC0 (protected network: 172.16.10.0/24)
+            * Host B: PC1, PC2 (permitted network: 172.16.30.0/24)
+            * Host C: PC3, PC4 (denied network: 172.16.50.0/24)
+Step 2: Power off routers Lab_A, Lab_B, and Lab_C, install the WIC-2T serial interface
+        module into slot 0 of each router, and power them back on.
+Step 3: Establish physical connections:
+        - Copper straight-through cables: PC to switch, switch to router FastEthernet.
+        - Copper crossover cables: Inter-switch uplinks (Fa0/4 to Fa0/5).
+        - Serial DCE/DTE cables: Connect Lab_A (Se0/3/0 - DTE) to Lab_B (Se0/3/0 - DCE),
+          and Lab_B (Se0/3/1 - DCE) to Lab_C (Se0/3/0 - DTE).
+Step 4: Configure IP addresses, subnet masks (255.255.255.0), and default gateways on 
+        all 5 PCs.
+Step 5: Access the CLI on each router, configure interface IP addresses, and issue 
+        'no shutdown' on all connected FastEthernet and Serial interfaces.
+Step 6: Set 'clock rate 64000' on the DCE serial interfaces of router Lab_B 
+        (Se0/3/0 and Se0/3/1).
+Step 7: Enable dynamic RIPv2 routing on all three routers (using 'router rip', 
+        'version 2', and 'network 172.16.0.0') to ensure full baseline connectivity.
+Step 8: Pre-ACL Verification:
+        - Execute 'show ip interface brief' and 'show ip route' on all routers.
+        - Verify baseline reachability by successfully pinging Host A (172.16.10.2) 
+          from both Host B (172.16.30.2) and Host C (172.16.50.2).
+Step 9: Configure a Standard Access Control List on router Lab_A:
+        - Define rule: Permit only the Host B network (172.16.30.0/24):
+          'access-list 10 permit 172.16.30.0 0.0.0.255'
+        - Rely on the default implicit deny at the end of the ACL to block all other traffic.
+Step 10: Apply the ACL to the egress LAN interface on Lab_A:
+         - Navigate to interface FastEthernet 0/0.
+         - Bind the list: 'ip access-group 10 out'.
+Step 11: Verify ACL application and rules:
+         - Run 'show access-lists' and 'show ip access-list' to view rules and match counters.
+         - Run 'show ip interface fastEthernet 0/0' to confirm that outgoing access list 10 
+           is active.
+Step 12: Test and interpret packet filtering results:
+         - Ping Host A from Host B: SUCCESS (echo reply received).
+         - Ping Host A from Host C: FAILS with 'U' (Destination Unreachable from Lab_A).
+         - Ping Host A from Lab_B / Lab_C: FAILS (router's egress serial IP is filtered out).
+Step 13: Save configuration to NVRAM using 'copy running-config startup-config'.
+Step 14: Stop.
+
+
+--------------------------------------------------------------------------------
+2. ESSENTIAL THEORY & CONCEPTS
+--------------------------------------------------------------------------------
+A. What is an Access Control List (ACL)?
+An ACL is an ordered set of permit and deny statements used to filter network traffic. 
+The router inspects packet headers sequentially from top to bottom against each rule:
+- Top-Down Evaluation: The first statement that matches the packet decides its fate 
+  (permit or drop).
+- Implicit Deny: If a packet matches no statements in the entire list, it is silently 
+  dropped by default ('deny any' exists invisibly at the end of every ACL).
+
+B. Standard ACL vs. Extended ACL:
+- Standard ACL:
+    * Inspects SOURCE IP address ONLY.
+    * Number ranges: 1-99 and 1300-1999.
+    * Must be placed AS CLOSE TO THE DESTINATION AS POSSIBLE. 
+      (Placing a standard ACL near the source drops that traffic everywhere, including 
+      valid routes to other destinations).
+- Extended ACL:
+    * Inspects Source IP, Destination IP, Protocol (TCP, UDP, ICMP), and Port numbers.
+    * Number ranges: 100-199 and 2000-2699.
+    * Placed AS CLOSE TO THE SOURCE AS POSSIBLE to conserve network bandwidth.
+
+C. Subnet Mask vs. Wildcard Mask:
+- Subnet Mask: Used by routing engines and hosts to separate the network portion from 
+  the host portion of an IP address.
+- Wildcard Mask: Used by ACLs to tell the router which bits in an address must match:
+    * Binary 0 = "Must match this exact bit".
+    * Binary 1 = "Ignore / Any value allowed".
+- Formula: Wildcard Mask = 255.255.255.255 - Subnet Mask
+    * Subnet Mask 255.255.255.0 -> Wildcard Mask 0.0.0.255
+
+D. Access-List vs. Access-Group:
+- 'access-list': Defines the filtering policy and rules in global configuration mode.
+- 'ip access-group <number> <in|out>': Attaches the defined list to a specific physical 
+  interface and sets the filtering direction:
+    * 'in' (Inbound): Filters incoming packets before routing table lookup.
+    * 'out' (Outbound): Filters outgoing packets after routing lookup as they exit the port.
+    * For Lab_A Fa0/0, outbound ('out') is used because packets are heading out toward 
+      the protected LAN 172.16.10.0/24.
+
+
+--------------------------------------------------------------------------------
+3. TOPOLOGY & MASTER ADDRESSING TABLE
+--------------------------------------------------------------------------------
+Topology Diagram:
+[Host A: PC0]
+     |
+ [Switch 0]
+     | (Fa0/0)
+  [Lab_A] (Se0/3/0: 172.16.20.1 - DTE)
+     |
+     | [172.16.20.0/24] (Serial DCE/DTE Cable)
+     |
+  [Lab_B] (Se0/3/0: 172.16.20.2 - DCE, Clock: 64000)
+     |    (Fa0/0: 172.16.30.1) -----> [Switch 1] -----> [Host B: PC1, PC2]
+     |    (Se0/3/1: 172.16.40.1 - DCE, Clock: 64000)
+     |
+     | [172.16.40.0/24] (Serial DCE/DTE Cable)
+     |
+  [Lab_C] (Se0/3/0: 172.16.40.2 - DTE)
+     | (Fa0/0)
+ [Switch 2]
+     |
+[Host C: PC3, PC4]
+
+Master Addressing Table (All Subnet Masks: 255.255.255.0):
++---------+-----------------+---------------+-----------------+-------------------------+
+| Device  | Interface       | IP Address    | Subnet Mask     | Gateway / Role          |
++---------+-----------------+---------------+-----------------+-------------------------+
+| Lab_A   | FastEthernet0/0 | 172.16.10.1   | 255.255.255.0   | Protected LAN Gateway   |
+|         | Serial0/3/0     | 172.16.20.1   | 255.255.255.0   | WAN to Lab_B (DTE)      |
+| Lab_B   | FastEthernet0/0 | 172.16.30.1   | 255.255.255.0   | Host B LAN Gateway      |
+|         | Serial0/3/0     | 172.16.20.2   | 255.255.255.0   | WAN to Lab_A (DCE, 64k) |
+|         | Serial0/3/1     | 172.16.40.1   | 255.255.255.0   | WAN to Lab_C (DCE, 64k) |
+| Lab_C   | FastEthernet0/0 | 172.16.50.1   | 255.255.255.0   | Host C LAN Gateway      |
+|         | Serial0/3/0     | 172.16.40.2   | 255.255.255.0   | WAN to Lab_B (DTE)      |
+| Host A  | FastEthernet0   | 172.16.10.2   | 255.255.255.0   | Gateway: 172.16.10.1    |
+| Host B1 | FastEthernet0   | 172.16.30.2   | 255.255.255.0   | Gateway: 172.16.30.1    |
+| Host B2 | FastEthernet0   | 172.16.30.3   | 255.255.255.0   | Gateway: 172.16.30.1    |
+| Host C1 | FastEthernet0   | 172.16.50.2   | 255.255.255.0   | Gateway: 172.16.50.1    |
+| Host C2 | FastEthernet0   | 172.16.50.3   | 255.255.255.0   | Gateway: 172.16.50.1    |
++---------+-----------------+---------------+-----------------+-------------------------+
+
+
+--------------------------------------------------------------------------------
+4. EXACT CLI CONFIGURATION SCRIPT
+--------------------------------------------------------------------------------
+
+--------------------------------------------------
+ROUTER 1: Lab_A (Includes ACL Setup)
+--------------------------------------------------
+Router> enable
+Router# configure terminal
+Router(config)# hostname Lab_A
+
+! Interface Configuration
+Lab_A(config)# interface fastEthernet 0/0
+Lab_A(config-if)# ip address 172.16.10.1 255.255.255.0
+Lab_A(config-if)# no shutdown
+Lab_A(config-if)# exit
+
+Lab_A(config)# interface serial 0/3/0
+Lab_A(config-if)# ip address 172.16.20.1 255.255.255.0
+Lab_A(config-if)# no shutdown
+Lab_A(config-if)# exit
+
+! Dynamic Routing (RIPv2)
+Lab_A(config)# router rip
+Lab_A(config-router)# version 2
+Lab_A(config-router)# network 172.16.0.0
+Lab_A(config-router)# exit
+
+! Standard ACL Definition (Permit only Host B subnet 172.16.30.0/24)
+Lab_A(config)# access-list 10 permit 172.16.30.0 0.0.0.255
+
+! Apply ACL Outbound on the Protected LAN Interface
+Lab_A(config)# interface fastEthernet 0/0
+Lab_A(config-if)# ip access-group 10 out
+Lab_A(config-if)# exit
+Lab_A(config)# exit
+Lab_A# copy running-config startup-config
+
+--------------------------------------------------
+ROUTER 2: Lab_B
+--------------------------------------------------
+Router> enable
+Router# configure terminal
+Router(config)# hostname Lab_B
+
+! Interfaces Configuration (DCE on both serial ports)
+Lab_B(config)# interface fastEthernet 0/0
+Lab_B(config-if)# ip address 172.16.30.1 255.255.255.0
+Lab_B(config-if)# no shutdown
+Lab_B(config-if)# exit
+
+Lab_B(config)# interface serial 0/3/0
+Lab_B(config-if)# ip address 172.16.20.2 255.255.255.0
+Lab_B(config-if)# clock rate 64000
+Lab_B(config-if)# no shutdown
+Lab_B(config-if)# exit
+
+Lab_B(config)# interface serial 0/3/1
+Lab_B(config-if)# ip address 172.16.40.1 255.255.255.0
+Lab_B(config-if)# clock rate 64000
+Lab_B(config-if)# no shutdown
+Lab_B(config-if)# exit
+
+! Dynamic Routing (RIPv2)
+Lab_B(config)# router rip
+Lab_B(config-router)# version 2
+Lab_B(config-router)# network 172.16.0.0
+Lab_B(config-router)# exit
+Lab_B(config)# exit
+Lab_B# copy running-config startup-config
+
+--------------------------------------------------
+ROUTER 3: Lab_C
+--------------------------------------------------
+Router> enable
+Router# configure terminal
+Router(config)# hostname Lab_C
+
+! Interfaces Configuration
+Lab_C(config)# interface fastEthernet 0/0
+Lab_C(config-if)# ip address 172.16.50.1 255.255.255.0
+Lab_C(config-if)# no shutdown
+Lab_C(config-if)# exit
+
+Lab_C(config)# interface serial 0/3/0
+Lab_C(config-if)# ip address 172.16.40.2 255.255.255.0
+Lab_C(config-if)# no shutdown
+Lab_C(config-if)# exit
+
+! Dynamic Routing (RIPv2)
+Lab_C(config)# router rip
+Lab_C(config-router)# version 2
+Lab_C(config-router)# network 172.16.0.0
+Lab_C(config-router)# exit
+Lab_C(config)# exit
+Lab_C# copy running-config startup-config
+
+
+--------------------------------------------------------------------------------
+5. VERIFICATION, TROUBLESHOOTING & RESULT INTERPRETATION
+--------------------------------------------------------------------------------
+A. CLI Verification Commands (on Lab_A):
+- 'show access-lists' or 'show ip access-list':
+    Displays rule definitions along with packet match counters:
+    Standard IP access list 10
+        10 permit 172.16.30.0, wildcard bits 0.0.0.255 (4 matches)
+- 'show ip interface fastEthernet 0/0':
+    Confirms interface binding:
+    Outgoing access list is 10
+    Inbound access list is not set
+
+B. Ping Testing Matrix & Detailed Analysis:
++-------------------+--------------------+--------------+-----------------------------------------+
+| Source Device     | Destination Target | Ping Result  | Technical Root Cause                    |
++-------------------+--------------------+--------------+-----------------------------------------+
+| Host B (PC1/PC2)  | Host A (172.16.10.2)| SUCCESS (!!) | Source IP 172.16.30.x matches permit rule|
+| Host C (PC3/PC4)  | Host A (172.16.10.2)| FAILS (U)    | Source IP 172.16.50.x hits implicit deny|
+| Router Lab_B CLI  | Host A (172.16.10.2)| FAILS (U)    | Pings from exit serial IP 172.16.20.2;  |
+|                   |                    |              | matches no permit rule -> implicit deny |
+| Router Lab_C CLI  | Host A (172.16.10.2)| FAILS (U)    | Source IP 172.16.40.2 hits implicit deny|
++-------------------+--------------------+--------------+-----------------------------------------+
+
+* Note on Orange LED on Switch Links:
+  During switch-to-switch interconnection, the port LED remains amber/orange for 
+  approximately 30 to 50 seconds. This is normal Spanning Tree Protocol (STP) behavior 
+  progressing through Listening and Learning states before reaching Forwarding (green) 
+  to prevent Layer 2 loops.
+
+
+--------------------------------------------------------------------------------
+6. TOP VIVA QUESTIONS & INSTANT BULLET ANSWERS
+--------------------------------------------------------------------------------
+Q1: Where should standard ACLs be placed, and why?
+A1: Standard ACLs must be placed as close to the destination as possible. Because standard 
+    ACLs filter solely on source IP address, placing them near the source would block that 
+    host from accessing other legitimate destinations throughout the network.
+
+Q2: Why did we not write an explicit 'deny' statement in our access list?
+A2: Every Cisco ACL has an invisible 'implicit deny all' statement at the very end. Any packet 
+    that fails to match the explicit permit statement is automatically discarded.
+
+Q3: Why did pinging Host A from router Lab_B fail even though Lab_B directly connects to Host B?
+A3: When a ping is initiated directly from a router CLI, the router uses the IP address of its 
+    outgoing interface (172.16.20.2) as the packet's source IP. Because 172.16.20.2 does not 
+    belong to the permitted 172.16.30.0/24 subnet, it is dropped by Lab_A's outbound ACL.
+
+Q4: What is the difference between 'in' and 'out' in 'ip access-group'?
+A4: 'in' evaluates packets as they arrive on the interface before routing decisions are made. 
+    'out' evaluates packets after they have been routed, right as they are being transmitted out 
+    of the interface.
+
+Q5: What is the valid number range for standard Access Control Lists?
+A5: Standard numbered ACLs use numbers from 1 to 99 and the extended expansion range 1300 to 1999.
+================================================================================

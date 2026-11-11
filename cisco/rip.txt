@@ -1,0 +1,434 @@
+================================================================================
+EXPERIMENT: DYNAMIC ROUTING CONFIGURATION USING RIP VERSION 2 IN PACKET TRACER
+================================================================================
+
+
+
+
+
+================================================================================
+ALGORITHM: DYNAMIC ROUTING CONFIGURATION USING RIP VERSION 2 IN PACKET TRACER
+================================================================================
+
+Step 1: Start and open Cisco Packet Tracer.
+
+Step 2: Place the required network devices on the workspace:
+        - 4 Cisco Routers (2621A, 2501A, 2501B, 2501C)
+        - 2 Generic PCs (PC-B on LAN 172.16.30.0, PC-C on LAN 172.16.50.0)
+
+Step 3: Power off routers 2501A, 2501B, and 2501C, add the serial interface 
+        module (WIC-2T) to slot 0 of each, and power them back on.
+
+Step 4: Connect the physical cables according to the topology:
+        - Connect Ethernet links using Copper Crossover cables:
+          * 2621A (Fa0/0) to 2501A (Fa0/0)
+          * 2501B (Fa0/0) to PC-B (Fa0)
+          * 2501C (Fa0/0) to PC-C (Fa0)
+        - Connect WAN links using Serial DCE/DTE cables:
+          * 2501A (Se0/0 - DCE) to 2501B (Se0/0 - DTE)
+          * 2501B (Se0/1 - DCE) to 2501C (Se0/0 - DTE)
+
+Step 5: Configure IP address, subnet mask (255.255.255.0), and default gateway 
+        on the end devices:
+        - PC-B: IP 172.16.30.2, Mask 255.255.255.0, Gateway 172.16.30.1
+        - PC-C: IP 172.16.50.2, Mask 255.255.255.0, Gateway 172.16.50.1
+
+Step 6: Access each router's CLI and configure IP addresses and subnet masks 
+        on all active interfaces (FastEthernet and Serial).
+
+Step 7: Execute 'no shutdown' on each interface to change its administrative 
+        state to UP.
+
+Step 8: Set the clock rate to 64000 on the DCE serial interfaces:
+        - 2501A (Se0/0)
+        - 2501B (Se0/1)
+
+Step 9: Enable the dynamic RIP routing engine on all four routers:
+        - Enter router configuration mode: 'router rip'
+        - Explicitly enable Version 2: 'version 2'
+        - Advertise the major Class B network: 'network 172.16.0.0'
+
+Step 10: Verify interface operational states using 'show ip interface brief'. 
+         Ensure all connected interfaces (including FastEthernet links with PCs) 
+         show both Status and Protocol as 'up'.
+
+Step 11: Inspect the routing table on the routers using 'show ip route'. 
+         Confirm that all 5 subnets appear:
+         - Local subnets flagged as 'C' (Connected)
+         - Remote subnets flagged as 'R' (Learned via RIP) along with administrative 
+           distance and hop count [120/hop_count].
+
+Step 12: Verify end-to-end bidirectional reachability by issuing a ping command 
+         from 2621A to PC-C (172.16.50.2). Confirm that ICMP Echo Replies are 
+         received successfully (!).
+
+Step 13: Save the active configuration to NVRAM on all routers using 
+         'copy running-config startup-config'.
+
+Step 14: Stop.
+================================================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+--------------------------------------------------------------------------------
+1. AIM & OBJECTIVES
+--------------------------------------------------------------------------------
+Aim:
+To design and configure dynamic routing using Routing Information Protocol 
+version 2 (RIPv2) on a multi-router network (4 routers, 5 subnets) in Cisco 
+Packet Tracer, verify routing table population across multiple hops, and 
+confirm end-to-end bidirectional reachability using ICMP ping.
+
+Key Objectives:
+1. Configure interfaces with /24 IP addresses and proper physical clocking.
+2. Configure dynamic RIPv2 routing using classful network advertisements.
+3. Inspect routing tables to confirm dynamic route learning and hop count metrics.
+4. Identify and resolve the "missing subnet" problem caused by unattached LAN ports.
+5. Verify bidirectional end-to-end packet flow using ping.
+
+
+--------------------------------------------------------------------------------
+2. COMPREHENSIVE THEORY & CONCEPTUAL DEEP-DIVE
+--------------------------------------------------------------------------------
+A. What is Dynamic Routing?
+In a large network (e.g., 100 routers), configuring static routes manually on 
+every router for every destination network is error-prone, labor-intensive, and 
+unscalable. Dynamic routing protocols solve this by allowing routers to share 
+their known routes automatically with neighbors. If a link fails, dynamic 
+protocols detect the topology change and automatically reroute traffic without 
+administrator intervention.
+
+B. How RIP Works (Distance Vector Concept):
+- RIP (Routing Information Protocol) is a Distance Vector interior routing 
+  protocol based on the Bellman-Ford algorithm.
+- Core philosophy: "Routing by rumor". A router learns about remote networks by 
+  asking its directly connected neighbors what they know.
+- Propagation of routes:
+    * Router 2501C is directly connected to network 172.16.50.0 (0 hops away).
+    * 2501C informs 2501B -> 2501B sees 50.0 as 1 hop away.
+    * 2501B informs 2501A -> 2501A sees 50.0 as 2 hops away.
+    * 2501A informs 2621A -> 2621A sees 50.0 as 3 hops away.
+  Notice: No route was manually typed on 2621A; the route information propagated 
+  dynamically across the chain!
+
+C. Metric: Hop Count
+- RIP uses hop count as its sole metric (number of routers crossed).
+- Maximum allowed hop count is 15.
+- A hop count of 16 is defined as "infinity" (unreachable).
+- Drawback: RIP completely ignores link bandwidth and latency. A slow 56 Kbps 
+  serial link with 1 hop will be preferred over a 1 Gbps fiber link with 2 hops!
+
+D. RIPv1 vs. RIPv2 (Critical Viva Topic):
+- RIPv1:
+    * Classful routing protocol.
+    * Does NOT send subnet masks in routing updates.
+    * Routers must assume the mask of the receiving interface or class boundary, 
+      failing if Variable Length Subnet Masking (VLSM) or non-standard subnets exist.
+    * Broadcasts updates to 255.255.255.255.
+- RIPv2:
+    * Classless routing protocol (supports CIDR and VLSM).
+    * INCLUDES the subnet mask in every routing update, eliminating guesswork.
+    * Multicasts updates to 224.0.0.9 (reduces processing overhead on non-router hosts).
+    * Supports plain-text and MD5 authentication.
+* Default Cisco IOS Behavior: Cisco routers send RIPv1 by default. Therefore, 
+  you MUST explicitly enter `version 2` during configuration!
+
+E. Link Failures and RIP Timers:
+- Update Timer (30 seconds): Routers broadcast/multicast their entire routing 
+  table every 30 seconds.
+- Timeout / Invalid Timer (180 seconds): If a neighbor stops advertising a route 
+  (e.g., cable is cut), the router waits 180 seconds before marking the route as 
+  unreachable (metric set to 16).
+- Main weakness: Slow convergence. In the worst case, it can take several minutes 
+  for distant routers to notice a dead path.
+
+
+--------------------------------------------------------------------------------
+3. TOPOLOGY & ADDRESSING TABLE
+--------------------------------------------------------------------------------
+Hardware Used:
+- 4 x Cisco Routers (model 2621XM or 2501/2901)
+- 2 x Generic PCs (PC-B and PC-C)
+- Serial WAN interface cards (WIC-2T) installed in slot 0 of 2501A, 2501B, 2501C 
+  (Must turn off router power -> insert WIC-2T card -> turn router on)
+
+Cabling Requirements:
+- Copper Crossover: Used between router FastEthernet and router FastEthernet 
+  (2621A Fa0/0 to 2501A Fa0/0), and between PC FastEthernet and router 
+  FastEthernet (no switch in between).
+- Serial DCE/DTE: Used between 2501A <-> 2501B, and 2501B <-> 2501C. 
+  The DCE side supplies clock synchronization (`clock rate 64000`).
+
+Visual Topology:
+[2621A] (Fa0/0: 172.16.10.1)
+   |
+   | [172.16.10.0/24] (Copper Crossover)
+   |
+[2501A] (Fa0/0: 172.16.10.2)
+        (Se0/0: 172.16.20.1 - DCE, clock rate 64000)
+   |
+   | [172.16.20.0/24] (Serial DCE/DTE Cable)
+   |
+[2501B] (Se0/0: 172.16.20.2 - DTE)
+        (Fa0/0: 172.16.30.1) ------> [PC-B: 172.16.30.2/24 | GW: 172.16.30.1]
+        (Se0/1: 172.16.40.1 - DCE, clock rate 64000)
+   |
+   | [172.16.40.0/24] (Serial DCE/DTE Cable)
+   |
+[2501C] (Se0/0: 172.16.40.2 - DTE)
+        (Fa0/0: 172.16.50.1) ------> [PC-C: 172.16.50.2/24 | GW: 172.16.50.1]
+
+Complete Addressing Table (All subnets use /24 mask = 255.255.255.0):
++---------+-----------------+---------------+-----------------+-------------------------+
+| Device  | Interface       | IP Address    | Subnet Mask     | Notes / Connection      |
++---------+-----------------+---------------+-----------------+-------------------------+
+| 2621A   | FastEthernet0/0 | 172.16.10.1   | 255.255.255.0   | LAN link to 2501A       |
+| 2501A   | FastEthernet0/0 | 172.16.10.2   | 255.255.255.0   | LAN link to 2621A       |
+|         | Serial0/0       | 172.16.20.1   | 255.255.255.0   | WAN to 2501B (DCE, 64k) |
+| 2501B   | Serial0/0       | 172.16.20.2   | 255.255.255.0   | WAN to 2501A (DTE)      |
+|         | FastEthernet0/0 | 172.16.30.1   | 255.255.255.0   | LAN gateway for PC-B    |
+|         | Serial0/1       | 172.16.40.1   | 255.255.255.0   | WAN to 2501C (DCE, 64k) |
+| 2501C   | Serial0/0       | 172.16.40.2   | 255.255.255.0   | WAN to 2501B (DTE)      |
+|         | FastEthernet0/0 | 172.16.50.1   | 255.255.255.0   | LAN gateway for PC-C    |
+| PC-B    | FastEthernet0   | 172.16.30.2   | 255.255.255.0   | Default GW: 172.16.30.1 |
+| PC-C    | FastEthernet0   | 172.16.50.2   | 255.255.255.0   | Default GW: 172.16.50.1 |
++---------+-----------------+---------------+-----------------+-------------------------+
+
+
+--------------------------------------------------------------------------------
+4. EXACT CLI CONFIGURATION COMMANDS
+--------------------------------------------------------------------------------
+
+--------------------------------------------------
+ROUTER 1: 2621A
+--------------------------------------------------
+Router> enable
+Router# configure terminal
+Router(config)# hostname 2621A
+
+! 1. Interface IP Configuration
+2621A(config)# interface fastEthernet 0/0
+2621A(config-if)# ip address 172.16.10.1 255.255.255.0
+2621A(config-if)# no shutdown
+2621A(config-if)# exit
+
+! 2. RIP Dynamic Routing Configuration
+2621A(config)# router rip
+2621A(config-router)# version 2
+2621A(config-router)# network 172.16.0.0
+2621A(config-router)# exit
+2621A(config)# exit
+2621A# copy running-config startup-config
+
+--------------------------------------------------
+ROUTER 2: 2501A
+--------------------------------------------------
+Router> enable
+Router# configure terminal
+Router(config)# hostname 2501A
+
+! 1. Interface IP Configuration
+2501A(config)# interface fastEthernet 0/0
+2501A(config-if)# ip address 172.16.10.2 255.255.255.0
+2501A(config-if)# no shutdown
+2501A(config-if)# exit
+
+2501A(config)# interface serial 0/0
+2501A(config-if)# ip address 172.16.20.1 255.255.255.0
+2501A(config-if)# clock rate 64000
+2501A(config-if)# no shutdown
+2501A(config-if)# exit
+
+! 2. RIP Dynamic Routing Configuration
+2501A(config)# router rip
+2501A(config-router)# version 2
+2501A(config-router)# network 172.16.0.0
+2501A(config-router)# exit
+2501A(config)# exit
+2501A# copy running-config startup-config
+
+--------------------------------------------------
+ROUTER 3: 2501B
+--------------------------------------------------
+Router> enable
+Router# configure terminal
+Router(config)# hostname 2501B
+
+! 1. Interface IP Configuration
+2501B(config)# interface serial 0/0
+2501B(config-if)# ip address 172.16.20.2 255.255.255.0
+2501B(config-if)# no shutdown
+2501B(config-if)# exit
+
+2501B(config)# interface fastEthernet 0/0
+2501B(config-if)# ip address 172.16.30.1 255.255.255.0
+2501B(config-if)# no shutdown
+2501B(config-if)# exit
+
+2501B(config)# interface serial 0/1
+2501B(config-if)# ip address 172.16.40.1 255.255.255.0
+2501B(config-if)# clock rate 64000
+2501B(config-if)# no shutdown
+2501B(config-if)# exit
+
+! 2. RIP Dynamic Routing Configuration
+2501B(config)# router rip
+2501B(config-router)# version 2
+2501B(config-router)# network 172.16.0.0
+2501B(config-router)# exit
+2501B(config)# exit
+2501B# copy running-config startup-config
+
+--------------------------------------------------
+ROUTER 4: 2501C
+--------------------------------------------------
+Router> enable
+Router# configure terminal
+Router(config)# hostname 2501C
+
+! 1. Interface IP Configuration
+2501C(config)# interface serial 0/0
+2501C(config-if)# ip address 172.16.40.2 255.255.255.0
+2501C(config-if)# no shutdown
+2501C(config-if)# exit
+
+2501C(config)# interface fastEthernet 0/0
+2501C(config-if)# ip address 172.16.50.1 255.255.255.0
+2501C(config-if)# no shutdown
+2501C(config-if)# exit
+
+! 2. RIP Dynamic Routing Configuration
+2501C(config)# router rip
+2501C(config-router)# version 2
+2501C(config-router)# network 172.16.0.0
+2501C(config-router)# exit
+2501C(config)# exit
+2501C# copy running-config startup-config
+
+
+--------------------------------------------------------------------------------
+5. CRITICAL LAB PROBLEM: THE MISSING ROUTE PHENOMENON
+--------------------------------------------------------------------------------
+The Symptom:
+When running `show ip route` on 2621A initially, only 3 subnets appear (10.0, 
+20.0, 40.0) instead of all 5 subnets!
+Networks 172.16.30.0 and 172.16.50.0 are completely missing!
+
+The Root Cause:
+Running `show ip interface brief` on 2501B and 2501C reveals that Fa0/0 is 
+status: "down", protocol: "down".
+Golden Rule of Routing Protocols:
+A router will NEVER advertise a network via RIP unless its underlying physical 
+interface is UP/UP!
+An Ethernet interface stays "down" until it senses an active link carrier 
+from an attached physical device.
+
+The Fix:
+1. Connect PC-B to 2501B (Fa0/0) using a copper crossover cable.
+2. Connect PC-C to 2501C (Fa0/0) using a copper crossover cable.
+3. Configure IP, mask (/24), and gateway on both PCs.
+4. Both router Fa0/0 interfaces transition immediately to UP/UP.
+5. RIP advertises the LAN subnets in its next 30-second cycle, and all 5 subnets 
+   now appear on all routers!
+
+
+--------------------------------------------------------------------------------
+6. ROUTING TABLE VERIFICATION & DEEP OUTPUT ANALYSIS
+--------------------------------------------------------------------------------
+Command:
+2621A# show ip route
+
+Output:
+Codes: C - connected, S - static, R - RIP, M - mobile, B - BGP
+Gateway of last resort is not set
+
+     172.16.0.0/24 is subnetted, 5 subnets
+C       172.16.10.0 is directly connected, FastEthernet0/0
+R       172.16.20.0 [120/1] via 172.16.10.2, 00:00:14, FastEthernet0/0
+R       172.16.30.0 [120/2] via 172.16.10.2, 00:00:14, FastEthernet0/0
+R       172.16.40.0 [120/2] via 172.16.10.2, 00:00:14, FastEthernet0/0
+R       172.16.50.0 [120/3] via 172.16.10.2, 00:00:14, FastEthernet0/0
+
+How to Read an Entry: `R 172.16.50.0 [120/3] via 172.16.10.2`
+- `R`: Route learned dynamically via RIP.
+- `172.16.50.0`: Destination remote network.
+- `120`: Administrative Distance of RIP (trustworthiness; lower is better).
+- `3`: Metric / Hop count (packet traverses 3 routers: 2501A -> 2501B -> 2501C).
+- `via 172.16.10.2`: IP address of the next-hop neighbor that forwarded the update.
+- `00:00:14`: Elapsed time since the last update was heard for this route.
+- `FastEthernet0/0`: Outgoing local interface to dispatch traffic toward that destination.
+
+
+--------------------------------------------------------------------------------
+7. PING VERIFICATION & INTERPRETATION OF CHARACTERS
+--------------------------------------------------------------------------------
+Testing connectivity from 2621A:
+2621A# ping 172.16.50.2 (Destination: PC-C)
+Output:
+Type escape sequence to abort.
+Sending 5, 100-byte ICMP Echos to 172.16.50.2, timeout is 2 seconds:
+.!!!!
+Success rate is 80 percent (4/5), round-trip min/avg/max = 10/24/40 ms
+
+Subsequent Ping Output:
+!!!!!
+Success rate is 100 percent (5/5)
+
+Meaning of Cisco IOS Ping Output Characters:
+- `!` (Exclamation mark):
+    * Indicates a successful ICMP Echo Reply was received within the 2-second timeout.
+    * `!!!!!` means 100% success.
+- `.` (Dot / Period):
+    * Indicates Request Timed Out (no reply received within timeout).
+    * Why the first ping is `.!!!!`: The sending host or router must resolve the 
+      hardware MAC address using Address Resolution Protocol (ARP). The first packet 
+      is held in buffer and times out during ARP resolution; remaining packets succeed!
+    * If all 5 are `.....`: Physical link down, missing return route, or wrong gateway.
+- `U` (Uppercase U):
+    * Destination Unreachable. An intermediate router received the packet, checked its 
+      routing table, had NO matching route and NO default route, and sent back an 
+      ICMP Type 3 Unreachable packet.
+
+
+--------------------------------------------------------------------------------
+8. TOP VIVA QUESTIONS & INSTANT BULLET ANSWERS
+--------------------------------------------------------------------------------
+Q1: Why did we type `network 172.16.0.0` identically on all four routers?
+A1: `network` is a classful command. `172.16.0.0` is the Class B parent boundary. 
+    It tells RIP: "Run RIP on any local interface whose IP begins with 172.16.x.x, 
+    and advertise that interface's subnet to neighbors."
+
+Q2: Why must we explicitly specify `version 2`?
+A2: Cisco routers default to RIPv1, which is classful and does not carry subnet 
+    masks in route updates. RIPv2 sends the subnet mask with each route, allowing 
+    accurate routing for /24 subnets and VLSM.
+
+Q3: What does the tuple `[120/2]` represent in `show ip route`?
+A3: The first number (120) is the Administrative Distance of RIP (trust factor). 
+    The second number (2) is the metric, which in RIP represents hop count (2 hops away).
+
+Q4: What is the maximum allowable hop count in RIP?
+A4: 15 hops. A hop count of 16 is treated as infinity (unreachable) to prevent 
+    infinite routing loops.
+
+Q5: What are the exclamation mark and dot in a ping output?
+A5: `!` indicates an ICMP Echo Reply was successfully received. `.` indicates 
+    Request Timed Out. The initial dot occurs due to ARP broadcast resolution delay.
+
+Q6: Why were the LAN subnets 30.0 and 50.0 not advertised initially by RIP?
+A6: Because no PCs were connected to Fa0/0 on 2501B and 2501C. An Ethernet interface 
+    remains down until a device provides a carrier signal. A routing protocol will never 
+    advertise a route for an interface that is down.
+================================================================================

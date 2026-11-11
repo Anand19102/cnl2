@@ -1,0 +1,242 @@
+================================================================================
+EXPERIMENT: DYNAMIC ROUTING CONFIGURATION USING RIPng (IPv6) IN CISCO PACKET TRACER
+================================================================================
+
+--------------------------------------------------------------------------------
+1. EXAM-READY ALGORITHM
+--------------------------------------------------------------------------------
+Step 1: Start Cisco Packet Tracer and assemble the network topology:
+        - Place 2 Cisco Routers (e.g., model 2901 or 2811: R1 and R2).
+        - Place 2 Generic PCs (PC1 on LAN 1, PC2 on LAN 2).
+Step 2: Add serial modules (HWIC-2T or WIC-2T) to the routers while powered off, 
+        then power them back on.
+Step 3: Connect the hardware:
+        - Connect PCs to router Gigabit/FastEthernet ports using Copper Straight-Through 
+          cables (or Crossover if direct PC-to-Router).
+        - Connect routers back-to-back using a Serial DCE/DTE cable.
+Step 4: Enable IPv6 routing globally on both routers using:
+        'ipv6 unicast-routing'
+Step 5: Configure global IPv6 addresses and link-local addresses on all active interfaces:
+        - Router 1 LAN: 2001:DB8:1::1/64
+        - WAN Link (R1 Se0/3/0): 2001:DB8:12::1/64
+        - WAN Link (R2 Se0/3/0): 2001:DB8:12::2/64
+        - Router 2 LAN: 2001:DB8:2::1/64
+Step 6: Activate all interfaces using 'no shutdown', and configure 'clock rate 64000' 
+        on the DCE serial interface.
+Step 7: Configure IPv6 addressing and default gateways on end PCs:
+        - PC1: IPv6 2001:DB8:1::10/64, Default Gateway: 2001:DB8:1::1
+        - PC2: IPv6 2001:DB8:2::10/64, Default Gateway: 2001:DB8:2::1
+Step 8: Enable RIPng on the router interfaces:
+        - Unlike IPv4 RIP, RIPng does NOT use 'network <ip>' statements.
+        - Enter each physical interface configuration mode and enable the named RIPng 
+          process directly:
+          'ipv6 rip <process_name> enable' (e.g., 'ipv6 rip RIP_TEST enable')
+Step 9: Verify the IPv6 routing table using:
+        'show ipv6 route'
+        Confirm that the remote IPv6 LAN subnet is learned dynamically, flagged with 'R'.
+Step 10: Verify the active RIPng protocol status using:
+         'show ipv6 protocols' or 'show ipv6 rip'
+Step 11: Test end-to-end connectivity using IPv6 ping:
+         - From PC1 or R1, ping PC2 (2001:DB8:2::10).
+         - Verify 100% ICMPv6 Echo Reply receipt.
+Step 12: Save running configuration to NVRAM: 'copy running-config startup-config'.
+Step 13: Stop.
+
+
+--------------------------------------------------------------------------------
+2. ESSENTIAL THEORY & CONCEPTS: WHAT IS RIPng?
+--------------------------------------------------------------------------------
+A. Definition:
+- RIPng stands for Routing Information Protocol "Next Generation".
+- It is an extension of RIPv2 adapted to support IPv6 (defined in RFC 2080).
+- It remains a Distance Vector interior gateway protocol based on the 
+  Bellman-Ford algorithm.
+
+B. Key Similarities with RIPv2:
+- Metric: Hop Count (maximum 15 hops; 16 hops = infinity / unreachable).
+- Timers: Periodic updates every 30 seconds; timeout after 180 seconds.
+- Loop Prevention: Uses Split Horizon and Poison Reverse.
+- Administrative Distance (AD): 120.
+
+C. Key Differences Between RIPv2 (IPv4) and RIPng (IPv6):
++-------------------------+---------------------------------+---------------------------------+
+| Feature                 | RIPv2 (IPv4)                    | RIPng (IPv6)                    |
++-------------------------+---------------------------------+---------------------------------+
+| Network Layer Protocol  | IPv4                            | IPv6                            |
+| Multicast Address       | 224.0.0.9                       | FF02::9 (All-RIP-Routers group) |
+| Transport Layer Port    | UDP Port 520                    | UDP Port 521                    |
+| Next-Hop Address        | IPv4 address                    | IPv6 Link-Local address (FE80::)|
+| Configuration Method    | Global mode: 'network <net_id>' | Interface-level:                |
+|                         |                                 | 'ipv6 rip <name> enable'        |
+| Mandatory Prerequisite  | Enabled by default              | Must type 'ipv6 unicast-routing'|
++-------------------------+---------------------------------+---------------------------------+
+
+D. How RIPng Configuration Differs from IPv4 RIP (Exam Trap):
+1. 'ipv6 unicast-routing' MUST be executed first in global configuration. Without 
+   this command, a Cisco router acts only as an IPv6 host and will not forward packets 
+   between interfaces or run IPv6 routing engines.
+2. In RIPv2, you type 'router rip' followed by 'network 172.16.0.0'.
+3. In RIPng, you DO NOT use 'network' statements. Instead, you define a process name 
+   (e.g., 'MY_RIP') and assign it directly on each interface:
+     Router(config-if)# ipv6 rip MY_RIP enable
+   The router automatically reads the IPv6 prefix assigned to that port and starts 
+   advertising it.
+
+
+--------------------------------------------------------------------------------
+3. TOPOLOGY & IPV6 ADDRESSING PLAN
+--------------------------------------------------------------------------------
+Topology Diagram:
+[PC1: 2001:DB8:1::10/64]
+     | (Copper Straight-Through)
+[Gig0/0: 2001:DB8:1::1/64]
+   (R1)
+[Se0/3/0: 2001:DB8:12::1/64] (DCE, Clock 64000)
+     | (Serial Link)
+[Se0/3/0: 2001:DB8:12::2/64] (DTE)
+   (R2)
+[Gig0/0: 2001:DB8:2::1/64]
+     | (Copper Straight-Through)
+[PC2: 2001:DB8:2::10/64]
+
+Addressing Table:
++--------+-----------+----------------------+--------+----------------------------+
+| Device | Interface | IPv6 Address/Prefix  | Role   | Gateway                    |
++--------+-----------+----------------------+--------+----------------------------+
+| R1     | Gig0/0    | 2001:DB8:1::1/64     | LAN 1  | N/A                        |
+| R1     | Se0/3/0   | 2001:DB8:12::1/64    | WAN    | DCE (Clock: 64000)         |
+| R2     | Se0/3/0   | 2001:DB8:12::2/64    | WAN    | DTE                        |
+| R2     | Gig0/0    | 2001:DB8:2::1/64     | LAN 2  | N/A                        |
+| PC1    | FastEth0  | 2001:DB8:1::10/64    | Host   | Gateway: 2001:DB8:1::1     |
+| PC2    | FastEth0  | 2001:DB8:2::10/64    | Host   | Gateway: 2001:DB8:2::1     |
++--------+-----------+----------------------+--------+----------------------------+
+
+
+--------------------------------------------------------------------------------
+4. EXACT CLI CONFIGURATION COMMANDS
+--------------------------------------------------------------------------------
+
+--------------------------------------------------
+ROUTER 1: R1
+--------------------------------------------------
+Router> enable
+Router# configure terminal
+Router(config)# hostname R1
+
+! CRITICAL STEP: Turn on IPv6 Routing
+R1(config)# ipv6 unicast-routing
+
+! LAN Interface Setup + Enable RIPng
+R1(config)# interface gigabitEthernet 0/0
+R1(config-if)# ipv6 address 2001:DB8:1::1/64
+R1(config-if)# ipv6 rip MY_RIP enable
+R1(config-if)# no shutdown
+R1(config-if)# exit
+
+! Serial WAN Interface Setup + Enable RIPng (DCE Clock)
+R1(config)# interface serial 0/3/0
+R1(config-if)# ipv6 address 2001:DB8:12::1/64
+R1(config-if)# clock rate 64000
+R1(config-if)# ipv6 rip MY_RIP enable
+R1(config-if)# no shutdown
+R1(config-if)# exit
+
+R1(config)# exit
+R1# copy running-config startup-config
+
+--------------------------------------------------
+ROUTER 2: R2
+--------------------------------------------------
+Router> enable
+Router# configure terminal
+Router(config)# hostname R2
+
+! CRITICAL STEP: Turn on IPv6 Routing
+R2(config)# ipv6 unicast-routing
+
+! Serial WAN Interface Setup + Enable RIPng (DTE side)
+R2(config)# interface serial 0/3/0
+R2(config-if)# ipv6 address 2001:DB8:12::2/64
+R2(config-if)# ipv6 rip MY_RIP enable
+R2(config-if)# no shutdown
+R2(config-if)# exit
+
+! LAN Interface Setup + Enable RIPng
+R2(config)# interface gigabitEthernet 0/0
+R2(config-if)# ipv6 address 2001:DB8:2::1/64
+R2(config-if)# ipv6 rip MY_RIP enable
+R2(config-if)# no shutdown
+R2(config-if)# exit
+
+R2(config)# exit
+R2# copy running-config startup-config
+
+
+--------------------------------------------------------------------------------
+5. VERIFICATION & RESULT INTERPRETATION
+--------------------------------------------------------------------------------
+
+A. Check the IPv6 Routing Table on R1:
+R1# show ipv6 route
+
+Sample Output:
+IPv6 Routing Table - 6 entries
+Codes: C - Connected, L - Local, S - Static, R - RIP, B - BGP
+C   2001:DB8:1::/64 [0/0]
+     via GigabitEthernet0/0, directly connected
+L   2001:DB8:1::1/128 [0/0]
+     via GigabitEthernet0/0, receive
+C   2001:DB8:12::/64 [0/0]
+     via Serial0/3/0, directly connected
+L   2001:DB8:12::1/128 [0/0]
+     via Serial0/3/0, receive
+R   2001:DB8:2::/64 [120/2]
+     via FE80::201:97FF:FE02:6401, Serial0/3/0
+
+Key Observations:
+- 'R' indicates route learned by RIPng.
+- '[120/2]' shows Administrative Distance = 120, Metric = 2 hops.
+- Notice the 'via FE80::...': In IPv6, dynamic routing protocols use the 
+  neighbor's Link-Local address (FE80::) as the next-hop address instead of 
+  the global unicast address.
+
+B. Verify Dynamic Protocol Info:
+R1# show ipv6 protocols
+(Shows 'IPv6 Routing Protocol is "RIP 0", Interfaces: GigabitEthernet0/0, Serial0/3/0')
+
+C. Ping Verification:
+From R1 CLI or PC1 Command Prompt:
+PC1> ping 2001:DB8:2::10
+Pinging 2001:DB8:2::10 with 32 bytes of data:
+Reply from 2001:DB8:2::10: bytes=32 time<1ms
+Reply from 2001:DB8:2::10: bytes=32 time<1ms
+Ping statistics: Packets: Sent = 4, Received = 4, Lost = 0 (0% loss)
+
+
+--------------------------------------------------------------------------------
+6. TOP VIVA QUESTIONS & INSTANT BULLET ANSWERS
+--------------------------------------------------------------------------------
+Q1: What does 'ng' stand for in RIPng?
+A1: Next Generation. It is the updated version of RIP designed specifically for IPv6.
+
+Q2: What is the multicast address used by RIPng for sending updates?
+A2: FF02::9 (the "All-RIP-Routers" link-local multicast address).
+
+Q3: Which UDP port does RIPng listen on?
+A3: UDP port 521 (standard RIPv2 uses UDP port 520).
+
+Q4: What is the primary difference in how RIPv2 and RIPng are configured?
+A4: RIPv2 is configured globally using the 'network' command under 'router rip'. 
+    RIPng is configured directly under each individual interface using the 
+    'ipv6 rip <process_name> enable' command.
+
+Q5: Why is the command 'ipv6 unicast-routing' compulsory before configuring RIPng?
+A5: Cisco routers have IPv6 packet forwarding disabled by default. The command 
+    'ipv6 unicast-routing' activates the router's IPv6 control and data planes, 
+    allowing it to forward IPv6 packets and run IPv6 dynamic routing protocols.
+
+Q6: In an IPv6 routing table, why does the next-hop address begin with FE80::?
+A6: IPv6 routing protocols use Link-Local addresses (FE80::/10) as next-hop identifiers 
+    because link-local addresses are guaranteed to be unique and directly reachable 
+    on that specific physical link.
+================================================================================

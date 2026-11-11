@@ -1,0 +1,90 @@
+		ROUTER 0
+
+Router> enable
+Router# configure terminal
+Router(config)# hostname R0
+
+! LAN Interface Setup
+R0(config)# interface gigabitEthernet 0/0
+R0(config-if)# ip address 192.168.1.1 255.255.255.0
+R0(config-if)# no shutdown
+R0(config-if)# exit
+
+! WAN Serial Interface Setup (DCE side requires clock rate)
+R0(config)# interface serial 0/3/0
+R0(config-if)# ip address 10.0.0.1 255.0.0.0
+R0(config-if)# clock rate 64000
+R0(config-if)# no shutdown
+R0(config-if)# exit
+
+! Dynamic Routing Protocol (RIPv2)
+R0(config)# router rip
+R0(config-router)# version 2
+R0(config-router)# network 192.168.1.0
+R0(config-router)# network 10.0.0.0
+R0(config-router)# exit
+
+! Static Host Name Resolution Cache
+R0(config)# ip host R1 10.0.0.2
+R0(config)# ip host PC1 192.168.2.10
+R0(config)# exit
+
+! Set Software Clock & Persist Configuration
+R0# clock set 10:00:00 11 Nov 2026
+R0# copy running-config startup-config
+Destination filename [startup-config]? [Press Enter]
+
+
+		ROUTER 1
+		
+
+
+Router> enable
+Router# configure terminal
+Router(config)# hostname R0
+
+! LAN Interface Setup
+R0(config)# interface gigabitEthernet 0/0
+R0(config-if)# ip address 192.168.1.1 255.255.255.0
+R0(config-if)# no shutdown
+R0(config-if)# exit
+
+! WAN Serial Interface Setup (DCE side requires clock rate)
+R0(config)# interface serial 0/3/0
+R0(config-if)# ip address 10.0.0.1 255.0.0.0
+R0(config-if)# clock rate 64000
+R0(config-if)# no shutdown
+R0(config-if)# exit
+
+! Dynamic Routing Protocol (RIPv2)
+R0(config)# router rip
+R0(config-router)# version 2
+R0(config-router)# network 192.168.1.0
+R0(config-router)# network 10.0.0.0
+R0(config-router)# exit
+
+! Static Host Name Resolution Cache
+R0(config)# ip host R1 10.0.0.2
+R0(config)# ip host PC1 192.168.2.10
+R0(config)# exit
+
+! Set Software Clock & Persist Configuration
+R0# clock set 10:00:00 11 Nov 2026
+R0# copy running-config startup-config
+Destination filename [startup-config]? [Press Enter]
+
+
+
+VIDEO 1
+
+1. HWIC Slot requirement: Cisco 2900 series routers do not have onboard serial ports by default. You must power down the router, insert the HWIC-2T (high-speed serial WAN interface card) into slot 0, and power the router back on.
+
+2. Cables:
+Copper Straight-Through: Connects PC FastEthernet ports to Router GigabitEthernet ports (unlike-layer devices).
+Serial DCE Cable: Connects R0 (Serial 0/3/0) to R1 (Serial 0/3/0). The DCE end provides clock synchronization to the DTE end.  
+
+
+The Four IOS Modes
+User EXEC Mode (Router>): Default upon connecting. Basic view-only diagnostic commands (e.g., ping, traceroute).  
+Privileged EXEC Mode (Router#): Accessed via the enable command. Full read access to system status, configuration files, and deep diagnostics (show commands, debug, reload).   
+Global Configuration Mode (Router(config)#): Accessed via configure terminal (or shortcut conf t). Changes affect the entire router globally (e.g., hostname, routing protocols, static host tables).   Interface Configuration Mode (Router(config-if)#): Accessed via interface <type> <slot/port>. Changes affect only the specific physical or virtual port (e.g., ip address, no shutdown, clock rate).

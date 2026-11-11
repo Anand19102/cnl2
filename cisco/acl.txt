@@ -1,0 +1,896 @@
+Hello all, welcome to this video on
+0:03
+network lab. Today's video shows how a
+0:07
+router can restrict access to a
+0:09
+protected network. We'll build a three
+0:11
+router campus network, configure
+0:13
+routting and then apply a standard
+0:15
+access control list. Only one network
+0:18
+will be permitted to reach the protected
+0:20
+one.
+Learning objectives
+0:23
+These are the four objectives. First is
+0:25
+to describe the role of each device.
+0:28
+Second, configure addressing and
+0:29
+routting. Third, to write and apply a
+0:32
+standard ACL. Fourth, to verify the
+0:35
+result by explaining every ping,
+0:38
+including those expected to fail. By the
+0:40
+end, each result should be explainable.
+Problem statement
+0:46
+Host A is on the network
+0:50
+172.16.10.0/24
+0:53
+behind lab. Only host B may communicate
+0:56
+with this network. We verify this in two
+0:59
+ways. By pinging host A from host B and
+1:02
+by pinging it from lab B and lab C. The
+1:05
+second check is the more instructive.
+Network topology
+1:10
+Now we'll see the diagram from left to
+1:12
+right. Each LAN reaches its router
+1:15
+through a switch. The routters are
+1:16
+joined by two serial links with the DCE
+1:19
+ends on lab B. The highlighted network
+1:22
+is the one we protect and the arrow
+1:24
+shows the only traffic we permit.
+1:27
+The F-00 interface of lab A is the
+1:30
+single entry to that network. So the
+1:32
+control goes there.
+Devices and ping
+1:37
+Next, the background needed for building
+1:39
+the network. A switch forwards frames
+1:41
+within one LAN. A routter forwards
+1:43
+packets between IP networks using its
+1:46
+routting table. Ping tests reachability
+1:49
+with an ICMP echo request and reply. The
+1:52
+ACL works on the router, so the switches
+1:55
+need no configuration.
+Step 1 - Place the devices
+1:58
+We now build the network. Place three
+2:01
+281 routters with each with a WIC2T
+2:05
+serial module. Add the module while the
+2:08
+router is powered off. Then we place
+2:11
+2950 - 2 4 switches and five PC.
+2:16
+PC0 is host A. PC1 and PC2 are host B
+2:21
+and PC3 and PC 4 are host C.
+Step 2 - Connect the devices
+2:26
+Then we connect the devices as shown in
+2:28
+the table. Two points need care. The
+2:31
+links between the two switches use
+2:33
+crossover cables because both ends are
+2:35
+switches. The serial links use DCE
+2:38
+cables with the clock end on lab B. An
+2:42
+orange light on one side of the switchto
+2:45
+switch link is quite normal. The command
+2:47
+show controllers serial 030 confirms
+2:51
+which end is DCE.
+Step 3 - Assign PC addresses
+2:56
+Each PC needs an address, a subnet mask
+2:58
+and a default gateway. The mask is
+3:01
+255.255.255.0
+3:04
+throughout. The gateway is the routter
+3:06
+interface used to leave the local
+3:08
+network. So each PC points to its own
+3:10
+router. Now we enter the values from the
+3:13
+table under the option desktop and then
+3:16
+IP configuration.
+Cisco IOS command modes
+3:20
+Next the background needed for
+3:21
+configuring the routters. Each command
+3:23
+works only in a particular mode and the
+3:26
+prompt shows which the enable command
+3:28
+leads to privileged mode. Configure
+3:31
+terminal leads to global configuration
+3:33
+and interface or router commands lead
+3:36
+deeper. The exit command goes back one
+3:38
+level and end returns to the privileged
+3:41
+mode.
+Serial links - who sets the clock ?
+3:44
+Both ends of a serial link must share a
+3:46
+clock. The DCE end supplies it. So the
+3:49
+clock rate is entered on the DCE
+3:51
+interfaces only. Here those are both
+3:54
+serial interfaces of lab B. Without it,
+3:57
+the link stays down and every later test
+4:00
+fails for reasons unrelated to the
+4:02
+access list.
+Routing and why we use RIP
+4:06
+A routter forwards a packet only if it
+4:08
+has a route to the destination. Here
+4:10
+routters lack eight roots in total. We
+4:14
+use RIP to learn them automatically. RIP
+4:17
+is a distance vector protocol for small
+4:19
+to medium networks. So it suits this
+4:22
+size. It needs the same few lines on
+4:24
+every router and the routting only has
+4:26
+to work because the experiment is about
+4:29
+ACL.
+Step 4 - find interface names
+4:33
+We now configure the routters. First run
+4:36
+show ip interface brief on every router.
+4:39
+It reveals the exact serial interface
+4:41
+names which depend on the module slot.
+4:43
+So here we are using serial 030 and
+4:46
+serial 031 on lab B. If the routters
+4:50
+show other names, we use those. After
+4:52
+configuring every interface and use
+4:54
+should show up and up.
+Step 5 - Configure Lab_A
+4:59
+Lab A comes first. Name the router.
+5:01
+Configure the LAN and serial interfaces.
+5:03
+Then start RIP. The LAN address is the
+5:06
+gateway of host A. Two RP lines matter.
+5:10
+Version two carries subnet information
+5:12
+and the network statement enables RIP on
+5:16
+every interface in that range. Lab A is
+5:18
+the DTE end. So it needs no clock rate.
+Step 6 - Configure Lab_B
+5:24
+Lab B follows the same pattern with one
+5:27
+difference. Both its serial interfaces
+5:29
+are DCE ends. So both need clock rate
+5:33
+64,000. Its LAN address is the gateway
+5:35
+of host B. RIP lines are identical to
+5:38
+those of lab A. Check each address
+5:41
+against the diagram we saw before.
+Step 7 - Configure Lab_C
+5:46
+Lab C is the DTE end. So it needs no
+5:49
+clock rate. Its LAN address is the
+5:51
+gateway of host C. Check that no
+5:54
+shutdown has been entered on every
+5:56
+interface in use and that the RIP lines
+5:59
+match those of the other routters.
+Step 8 - Verify routing before ACL
+6:04
+Test the network before restricting it.
+6:06
+Otherwise a later failure cannot be
+6:08
+blamed on the access list. We confirm
+6:11
+that every interface is up and up. After
+6:15
+about 30 seconds, check that every
+6:17
+router list all the five networks. Then
+6:20
+ping 10.2 from PC1 and PC3. Both must
+6:24
+succeed.
+History of ACL
+6:26
+Next, the background needed for the
+6:28
+access list. The ID is older than the
+6:30
+router. In the 1960s, multiCS at MIT
+6:34
+kept a list for every segment and
+6:36
+directory recording who could use it.
+6:38
+The term dates from 1965.
+6:41
+Unix adopted a simpler form. In the late
+6:43
+1980s, rooters began to filter the
+6:46
+packets crossing them. A forerunner of
+6:48
+the firewall.
+What is an access list?
+6:51
+An access list is is an ordered set of
+6:54
+permit and deny rules. The routter
+6:56
+checks each packet against them. The
+6:59
+first rule that matches decides. If none
+7:02
+matches, the implicit deny blocks the
+7:05
+packet. In our case, the condition is
+7:07
+the source address. A packet from 30.2 2
+7:10
+is permitted. One from 20.2 matches
+7:13
+nothing, so it is blocked.
+Standard ACL
+7:17
+A standard list has five properties. It
+7:20
+examines only the source address. It is
+7:22
+numbered 1 to 999 or,300
+7:25
+to,999.
+7:28
+Its statements are read from the top. It
+7:30
+ends with an implicit deny and packets
+7:33
+generated by the router itself are not
+7:35
+checked by it. That last point explains
+7:37
+a later result.
+Why subnet mask and wildcard mask?
+7:42
+Two masks serve different purposes. The
+7:44
+subnet mask tells host and routters
+7:48
+which bits identify the network. The
+7:50
+wild card mask tells an ACL which bits
+7:53
+must match. A zero must match. A one is
+7:57
+ignored. It is the inverse of the subnet
+7:59
+mask. So 0.0.0.255
+8:02
+255 means match the first three octets
+8:05
+and then accept any last oct.
+Standard ACL command format
+8:10
+The command has four parts. Access list,
+8:13
+a number, permit or deny and the source.
+8:16
+The source can be an address with the
+8:18
+wild card mask which select a network.
+8:21
+It can be the keyword host for one
+8:24
+address or it can be any for every
+8:27
+address.
+Standard ACL examples
+8:32
+Three forms are shown here. The first
+8:34
+permits a whole network. We use this
+8:36
+form because the entire host B network
+8:38
+must be allowed. It depends on the wild
+8:41
+card mask. The second permits one host
+8:44
+and the third permits every source.
+What is an access group?
+8:49
+A list on its own filters nothing. An
+8:52
+access group attaches it to an
+8:54
+interface. The command refers to the
+8:55
+list by number and names are direction.
+8:58
+So the access list holds the rules. The
+9:00
+access group links them and the
+9:02
+interface applies them. Here list 10 is
+9:06
+applied to f00 of lab a for packets
+9:09
+leaving towards 10.0/24.
+Apply ACL to an interface
+9:16
+Apply a list with IP access group
+9:18
+followed by its number and direction. An
+9:21
+inbound list checks packets on arrival.
+9:23
+An outbound list checks them after
+9:25
+routting as they leave. We use outbound
+9:28
+on f00 to undo either step. Place no in
+9:33
+front of the command.
+Where does ACL go?
+9:38
+Follow a packet from host B. It crosses
+9:41
+lab B, reaches lab A and is rooted out
+9:44
+through F 0. The list is checked there.
+9:47
+We place it next to the protected
+9:49
+network because a standard list sees
+9:51
+only the source. Near the source, it
+9:53
+would block that source everywhere.
+9:56
+Direction matters too. Inbound on F000,
+9:59
+it would block host A itself.
+Step 9 - Write and apply ACL
+10:04
+With the background complete, we write
+10:05
+the access list. Enter access list 10
+10:08
+permit with the host B network and its
+10:11
+wild card mask. Then on F000, apply it
+10:15
+with IP access group 10 out. No deny
+10:18
+line is needed because of the implicit
+10:20
+deny.
+Step 10 - Verify ACL
+10:23
+Verify before testing. Now, show access
+10:26
+list displays the statements. Show ip
+10:30
+access list also gives a packet count
+10:32
+for each matched entry which is useful
+10:34
+after the test. Show ip interface on f00
+10:38
+should report outgoing access list 10.
+Step 11 - Test and interpret results
+10:46
+Finally, we test the result. PC1 host B
+10:49
+succeeds because its source address is
+10:52
+permitted. Lab B fails. A routter pings
+10:55
+from its outgoing interface address
+10:57
+which is outside the permitted network.
+11:00
+The output shows U for unreachable. Some
+11:03
+IOS versions show A. Lab C and PC3 host
+11:08
+C fail in the same way. And ACL judges
+11:11
+the address in the header, not the
+11:13
+device.
+Demo
+11:16
+Now we'll see a demo of the same.
+11:24
+So here we place
+11:27
+a total of five PC. One for host A and
+11:31
+two each for host B and host C.
+11:35
+Then we place the switches,
+11:38
+three of them.
+11:41
+Then we place three routters,
+11:45
+model number 281.
+11:49
+Now we'll do the cable connection.
+11:52
+Copper straight through between the PC
+11:55
+switch and the switch and the router.
+12:02
+F0 of PC connected to
+12:05
+F-02 of switch. Second PC connected to
+12:09
+03 of the switch.
+12:12
+01 of the switch connected to routters 0
+12:15
+0. The same is repeated for
+12:19
+the third segment there
+12:22
+because 01 is for the switch connection
+12:26
+to the router.
+12:33
+In order to connect the serial DCE
+12:35
+cable, each router should have WIC2T
+12:39
+module. So we switch off the routter,
+12:41
+place it and switch it back on which is
+12:44
+repeated for all the three routters.
+12:52
+So the serial interface will be
+12:55
+030 and 031.
+12:59
+So the router in the middle 030
+13:01
+connected to 030 on the left and it's
+13:05
+031 is connected to 030 on the right.
+13:10
+Now there are two more connections
+13:13
+between the switches
+13:17
+Ethernet ports 04 and 05.
+13:23
+Now we'll configure each of them for the
+13:26
+PC.
+13:28
+Its name is host A.
+13:31
+And we'll set up its IP configuration
+13:35
+whose IP will be 172.16.10.2.
+13:38
+2 the mask being /24
+13:44
+and its default gateway will be
+13:47
+172.1610.1.
+13:53
+Now we set the router whose name will be
+13:57
+lab a.
+13:59
+So we'll change both the display name
+14:02
+and the host name.
+14:06
+Then we'll need to set up the
+14:07
+interfaces. We have a fast Ethernet
+14:10
+interface and a serial interface. For
+14:12
+the fast Ethernet interface, the IP will
+14:15
+be
+14:16
+172.16.10.1.
+14:20
+Then the subnet mask /24.
+14:23
+Port status changed to on then the
+14:27
+serial interface 030 whose IP address
+14:29
+will be 172.16.20.1
+14:31
+20.1 its mask /24 and its port status is
+14:36
+on. This is the DTE end so no clock rate
+14:40
+then the RP network is set as 172.16.0.0
+14:44
+Z also we need to mention the version
+14:47
+which will be version two.
+14:50
+Now this will be repeated
+14:53
+in the next two sections also. For this
+14:57
+PC the name will be host B. Host B will
+15:02
+have two PCs. So host B has a PC 1
+15:08
+and PC2. Now for PC1 we are setting up
+15:11
+its IP configuration which is 172.6.
+15:14
+16.30.2 the mask being /24 and the
+15:18
+default gateway being 172.16.30.1.
+15:27
+Then for the second PC which is also a
+15:29
+part of host B,
+15:34
+we'll give the name as host B PC2.
+15:38
+Here also we need to give the IP
+15:41
+configuration
+15:43
+which will be 172.16.30
+15:46
+its mask being /24
+15:49
+and its default gateway being
+15:52
+172.16.30.1.
+15:55
+Now we'll set up the router whose name
+15:58
+is lab B. So we'll change the display
+16:01
+name and the host name.
+16:05
+After that we need to set up the
+16:08
+interfaces. So this will have two serial
+16:11
+interfaces and one fast Ethernet
+16:13
+interface.
+16:17
+We'll click on the fast Ethernet
+16:18
+interface and its IP will be 172.16.30.1
+16:24
+its mask /24 and its port status is
+16:27
+changed to on. Then the serial
+16:30
+interfaces serial 030 will have the IP
+16:33
+address 172
+16:36
+16.20.2
+16:39
+and its mask /24.
+16:43
+Since this is the DCE end, we set the
+16:46
+clock rate as 64,000 and the port status
+16:49
+is on. For the interface 031, the IP
+16:52
+address will be 172.16.40.1
+16:56
+mask/24.
+16:58
+This is another DCE end. So we set the
+17:02
+clock rate as 64,000 and port status on.
+17:05
+Then we set up the RIP where the network
+17:08
+is 172.16.0.0.
+17:11
+We add it. After that we need to specify
+17:14
+the version which is version two.
+17:20
+We repeat this with PC3 4 and lab C. So
+17:26
+PC3 is part of host C.
+17:31
+Then we'll go for the IP configuration
+17:34
+where the IP will be 172.16.50.2
+17:38
+mask being /24 and its default gateway
+17:43
+being 172.16.50.1.
+17:50
+The next PC
+17:53
+is also part of host C which is PC4.
+17:57
+We change its display name and we'll go
+18:00
+for the IP configuration where its IP
+18:03
+address will be 172.16.50.3
+18:06
+its mask being/24.
+18:09
+Then the default gateway being
+18:11
+172.1650.1.
+18:15
+Now we'll set up the router which is
+18:18
+called lab C. So we go to config and
+18:21
+change its display name and host name.
+18:31
+Now it has a faster than interface whose
+18:33
+IP will be 172.16
+18:39
+50.1 its mask/24
+18:42
+and its port status will be on
+18:45
+and a serial interface 030
+18:49
+whose IP address will be 172.16.40.2
+18:53
+2 and its mask /24 port status on
+18:56
+because it is the DTE end we set up the
+18:59
+RP where we give the entry 172.16.0.0
+19:05
+we add it then we also mention its
+19:08
+version which is version two.
+19:21
+Now we have done the basic configuration
+19:24
+of all these. You'll see
+19:29
+a different color dot there between the
+19:31
+connection of switches. That's okay to
+19:33
+see. The connection will be working
+19:35
+anyway. Now we go to lab A. We press end
+19:40
+to reach the
+19:42
+mode where we'll be checking for show ip
+19:45
+interface brief. We see that
+19:49
+the interfaces are up and we check if
+19:53
+all the roots are available. We can see
+19:55
+all of them are there. We do the same
+19:57
+checking for both the
+20:00
+remaining
+20:02
+routters.
+20:04
+show ip interface brief
+20:07
+where we'll see the interfaces up and up
+20:12
+and the show ip root where we'll see the
+20:16
+list of all roots. The same is repeated
+20:19
+for lab C.
+20:25
+typing in show ip interface brief
+20:32
+and then show ip root. You can see here
+20:35
+also the interfaces up and up. Also the
+20:40
+show ip root will give us a list of all
+20:44
+the roots.
+20:50
+So we'll check a ping before setting the
+20:54
+ACL. So from host B we are going to ping
+20:58
+172.16.10.2
+21:05
+we need to initially check the ping is
+21:07
+already working then only after
+21:08
+implementing ACL you can see the
+21:10
+difference. So you see that the ping is
+21:12
+possible from there.
+21:16
+Also taking a PC from host C. We'll do
+21:19
+the same. We'll go and ping 172.16.10.2.
+21:29
+Here also
+21:32
+ping is possible.
+21:37
+Now what we do is
+21:40
+we'll go to lab A.
+21:43
+Now in lab A
+21:48
+we'll enter the conf T mode.
+21:53
+Then we'll enter the
+21:58
+access list, its number and the
+22:01
+permitted network and its wild card
+22:04
+entry.
+22:09
+For the fast ethernet, we are going to
+22:15
+give the specific rules
+22:23
+adding it to the access group.
+22:28
+Now we have set the rules. Now we need
+22:31
+to check if it is done properly. So
+22:33
+we'll give a few commands to check it.
+22:36
+So we have show access list. So we see
+22:40
+the data we have entered before. Now we
+22:44
+also look into
+22:47
+show ip access list.
+22:55
+Then there is
+22:58
+another command
+23:01
+show IP interface faster than a details.
+23:11
+Now we check the ping again. You see
+23:14
+it's successful from
+23:17
+host B to A. But from lab B to C, B to
+23:21
+A, host A, it fails. From lab C to host
+23:25
+A, it fails.
+23:29
+Also from host C
+23:32
+to A, it fails.
+References
+23:39
+These are the list of references that
+23:42
+are used for the preparation of this
+23:44
+material.
+23:47
+That's all for now. Thank you for
+23:49
+watching.
+
+17:13
+New
+

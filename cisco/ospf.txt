@@ -1,0 +1,872 @@
+Hello all, welcome to this video on
+0:03
+network lab. Today I'll be talking about
+0:06
+implementation of OPF rooting in Cisco
+0:09
+Packet Racer.
+0:12
+A quick puzzle. Four routters, five
+0:15
+networks.
+0:17
+With static routting, each router needs
+0:19
+a route to every network it is not
+0:22
+attached to. That is 12 roots typed by
+0:25
+hand. with OPF
+0:28
+eight network lines plus one router OPF
+0:31
+line per router. But here is the real
+0:34
+question. What happens when a link
+0:36
+fails? Who fixes all these roots? Hold
+0:40
+that thought. We'll answer it at the
+0:43
+end.
+Objectives and task
+0:47
+Our plan here is to understand OPF,
+0:50
+calculate the cost, configure four
+0:52
+routters, and verify troubleshoot. So we
+0:56
+configure OPF. We show the routting
+0:58
+table and test with ping. Here's the
+1:01
+topology where we have a chain of four
+1:03
+routters and five networks all /24.
+1:07
+Spot the two lands 30.0 and 50.0. They
+1:11
+will cause trouble later. But first let
+1:14
+us build the network.
+Cabling the network
+1:17
+Now every network starts with cables. We
+1:20
+have no switch. So the one nethernet
+1:22
+link between 2621A and 25501A is a
+1:25
+copper crossover. Why? Routers send on
+1:28
+one pair of wires and listen on another.
+1:31
+So a crossover swaps the pairs and each
+1:34
+one hears the other. The two serial have
+1:38
+a DTE end and a DCE end. The DCE end
+1:43
+supplies the clock. Now look at the LAN
+1:46
+30.0 and 50.0. At first nothing is
+1:49
+connected to E 0 on 251B and 25 01 C. No
+1:56
+PC. Remember that it matters later.
+Interface address table
+2:01
+Now the addresses straight from the
+2:03
+figure. Spot the pattern. Every link has
+2:06
+two addresses in the same network. 2621A
+2:10
+is 10.1.
+2:12
+251 A is 10.2. Both in the network 10.0.
+2:16
+The serial links work the same way. Each
+2:19
+LAN has just one routter address. Keep
+2:22
+this table handy so we'll use it when we
+2:24
+do the configuration.
+Routing vs forwarding
+2:28
+Now the theory in small bites.
+2:32
+Two words that sound alike. Forwarding.
+2:35
+When a packet arrives, the routter
+2:36
+checks its table and sends it out.
+2:39
+Rooting. How the table gets built.
+2:42
+Forwarding is following the road signs.
+2:44
+Routting is drawing the map. OPF is the
+2:47
+mapmaker.
+How link state routing works
+2:51
+How does OPF draw the map? Three steps.
+2:54
+One is each router learns its own links
+2:57
+and the costs. It floods that
+2:59
+information meaning it sends it out of
+3:02
+its links and the neighbors pass it on.
+3:05
+Now every router holds the same full
+3:08
+map. So each one works out the shortest
+3:10
+paths by itself. Same map, same answer.
+Flooding on our network
+3:16
+Watch flooding on our network. 25501B
+3:20
+has news. Step one is it tells its
+3:23
+neighbors 251 A and 251 C. Step two is
+3:27
+251 A passing it to 2621 A but not back
+3:31
+to 25501 B. Two steps and all four
+3:34
+routters know. Every router does this
+3:37
+with its own information and that is how
+3:39
+all the four end up with the same map.
+Dijkstra's algorithm
+3:43
+Then there is the dextras algorithm.
+3:46
+The routter starts at itself with cost
+3:49
+zero and its neighbors at their link
+3:52
+cost. Then they pick the cheapest
+3:55
+unfinished node and mark it as finished.
+3:58
+If the path through it is cheaper for a
+4:00
+neighbor, they replace it with the old
+4:03
+coast.
+4:04
+Repeat this until the algorithm is done.
+4:07
+Now the result is the cheapest path to
+4:09
+every destination plus the next hope.
+4:12
+That fills up the routting table.
+OSPF
+4:16
+OPF means open shortest path first. It
+4:19
+is a link state protocol for one
+4:21
+autonomous system. A group of routters
+4:24
+sharing one routting protocol. A quick
+4:26
+history from RFC 2328.
+4:29
+First came a link state protocol for the
+4:31
+ARPANET. then improvements
+4:35
+check sums and less traffic. Then ISIS
+4:39
+added a designated router. Finally, the
+4:43
+IETF OPF working group added multiccast
+4:46
+and areas. RFC 2328 April 1998 defines
+4:52
+OPF version 2. At the bottom, you can
+4:55
+see how paths are chosen. The metric is
+4:57
+simple. Cost equals the reference
+4:59
+bandwidth divided by interface
+5:01
+bandwidth.
+OSPF area
+5:05
+Picture a huge network. If every router
+5:08
+heard every tiny change, the updates
+5:10
+would never stop. Areas fix that by
+5:12
+limiting how far updates spread. Area
+5:15
+zero is the backbone and traffic between
+5:17
+areas goes through it. A routter joining
+5:20
+two or more areas is the area border
+5:23
+router and ABR. In our lab, everything
+5:26
+is an area zero. So no ABR. Next
+5:29
+question. How does OPF compare parts
+5:33
+with costs as we saw before?
+Configuration commands
+5:38
+Now the commands two are enough. So let
+5:41
+us read them word by word. Together
+5:44
+routter OPF1 enables OPF and enters
+5:47
+routigation mode. The word OPF names the
+5:51
+protocol and one is the process ID. The
+5:54
+process ID only matters on that routter.
+5:56
+Any number from 1 to 65,535
+6:00
+works and routters with different
+6:02
+numbers can still be neighbors.
+6:04
+We use one everywhere. The network
+6:07
+command says which interfaces run OPF
+6:10
+and in which area. The address is
+6:13
+matched against each interfaces address.
+6:15
+The wild card says how much must match
+6:18
+and area zero is the backbone.
+6:21
+The dark blue boxes are fixed. The pink
+6:24
+boxes are the values we choose.
+Wildcard mask
+6:30
+Why does the network command use a wild
+6:32
+card? Its job is to pick which
+6:34
+interfaces run O SPF. And the wild card
+6:37
+says how much of the address must match
+6:39
+match. A zero means this part must
+6:42
+match. A 255 means any value is
+6:45
+accepted. With 0.0.0.255,
+6:49
+the first three numbers must match. So
+6:51
+one line covers every interface in the
+6:54
+network whatever its last number and
+6:57
+note that the network command takes a
+6:59
+wild card not a subnet mask for/24
+7:03
+255.255.255.0
+7:07
+becomes 0.0.0.255.
+7:10
+The wild card for 0.0.0.0
+7:13
+would match one exact address only.
+Entering configuration mode
+7:18
+Before typing any commands, you need to
+7:20
+know the modes. The routter starts in
+7:22
+user exec mode with a greater than sign.
+7:26
+Type enable to reach the privileged exec
+7:29
+mode with the hash sign. Type configure
+7:32
+terminal to reach the global
+7:33
+configuration mode. From there,
+7:35
+interface followed by a name that takes
+7:38
+you to the interface configuration mode
+7:40
+and router OPF1 takes you to the routter
+7:43
+configuration mode. The prompt always
+7:46
+tells you where you are.
+Router configuration
+7:49
+Now the interfaces for each interface we
+7:53
+have a few lines. First the interface
+7:56
+and its name. Second the IP address and
+7:58
+the address from the table followed by
+8:01
+the mask. Then the no shutdown which
+8:04
+switches the interface on on a serial
+8:06
+link. The DCE end also needs a clock
+8:09
+rate. Find that end. Then type clock
+8:11
+rate followed by a value. Repeat this
+8:14
+for all the interfaces
+8:16
+listed in the P table we saw before. Now
+8:20
+the OPF on all four routters. On each
+8:24
+one we type router OPF1 and then one
+8:27
+network line for each connected network
+8:29
+with the wild card 0.0.0.255
+8:32
+and area 0. 2621 A gets one network
+8:36
+line. 25501 A 2501
+8:40
+B 3 and 251 C 2. So in total eight
+8:46
+network lines just like our pel. When
+8:49
+you finish we type end to leave the
+8:52
+configuration mode.
+How routers become neighbors
+8:55
+Before routters share maps they must
+8:57
+become neighbors using the hello
+8:59
+protocol. Each routter sends a hello
+9:02
+packet regularly. A router that sees
+9:05
+itself listed in a neighbor's hello
+9:07
+knows that the link works both ways.
+9:10
+Adjacent neighbors synchronize their
+9:12
+link state databases. Fully in sync
+9:14
+means state full. And remember our
+9:18
+opening question. If hellos stop, the
+9:21
+link is treated as down. The routter
+9:23
+floods the news and every router
+9:25
+recalculates.
+Verify OSPF neighbors
+9:28
+Now to verify
+9:30
+type show ipospf neighbor on every
+9:33
+router and look for full in the state
+9:36
+column. Full means the two routters have
+9:38
+fully shared their information. The
+9:40
+other columns are neighbor ID which is
+9:43
+the neighbor's routter ID. Pri which is
+9:45
+its priority. Dead time is a countdown.
+9:49
+If no hello arrives, the neighbor is
+9:51
+declared down. Address is the neighbor's
+9:54
+interface address and interface is your
+9:56
+own interface for that link. In the
+9:59
+chain the two end routters show one
+10:02
+neighbor each and 251 A and 251B show
+10:05
+two each.
+Routing table on 2621A
+10:10
+Now show IP route on 2621A.
+10:13
+C means directly connected
+10:17
+that is to 10.0. O means learned by OPF.
+10:21
+We see 20.0 0 and 40.0 both through 10.2
+10:25
+that is 25501 a next hope in the
+10:28
+brackets 110 is the administrative
+10:31
+distance the default trust value for OPF
+10:34
+and the second number will be the cost
+10:37
+however 30.0 and 50.0 are missing
+Ping test
+10:43
+now it's time to ping from 2621A
+10:47
+20.2 we see a success 40.2 to success
+10:51
+30.1 fails. 50.1 fails from 25501c ping
+10:56
+10.1 success because ping needs a route
+11:00
+in both directions. So most of the
+11:03
+network works but our two lands stay
+11:05
+silent. Why? Let us investigate.
+LANS 30.0 and 50.0 missing
+11:11
+Why do 30.1 and 50.1 fail? The routting
+11:15
+table has no route to those lands. The
+11:18
+reason is the interface. Nothing is
+11:20
+connected to E 0 on 251B and 251 C. So E
+11:24
+0 is not up and up. The first up is the
+11:27
+physical link and the second is the line
+11:29
+protocol. OPF only runs on interfaces
+11:32
+that are up. So those two lands are
+11:34
+never advertised. We can confirm it with
+11:37
+show ip interface brief.
+The fix
+11:43
+Now to fix it, we connect a PC to E 0 on
+11:46
+251B and 251 C with a crossover cable.
+11:50
+Then we run show ip interface brief on
+11:53
+both routters. It lists each interface
+11:55
+with its address status and protocol. E
+11:59
+should now say up and up. On 2621A,
+12:03
+we run show ip root. Two new O roots
+12:07
+appear there. 30.0 and 50.0. In the
+12:10
+brackets we have
+12:14
+110 which is the administrative
+12:15
+distance, 66 and 130 the cost. Ping both
+12:20
+lands we'll see an exclamation mark
+12:22
+which is a reply. So five exclamation
+12:25
+marks means success. If the first packet
+12:28
+is lost while the address is resolved
+12:31
+that still counts as a success.
+12:34
+Now our opening question. When a link
+12:36
+changes, the routters flood the news and
+12:38
+everyone recalculates. Nobody edits the
+12:41
+route but OPF only handles the networks
+12:45
+we tell it about.
+Demo
+12:49
+Now let us see a demo of the same.
+12:54
+So we place the routters as we have
+12:57
+discussed in the
+13:00
+problem that we are solving four of
+13:02
+them. Then we do the cable connection.
+13:06
+This is a copper crossover
+13:09
+between these two routters. The others
+13:11
+need serial cable connection. But we see
+13:13
+that they don't have a serial port. So
+13:16
+we add WIC2T port by switching off the
+13:20
+router, placing it, then switching it
+13:22
+on. We repeat it on all those three
+13:25
+routters because all the three are using
+13:28
+serial connections.
+13:32
+The same is done for this router also.
+13:38
+Then we place the cable serial DC
+13:43
+to the corresponding serial interfaces
+13:46
+from 1 to zero.
+13:49
+Next what we'll do is we'll rename the
+13:52
+routters and also set up its interfaces.
+13:55
+So the first one will be named 2621A.
+13:59
+We'll change both the display name and
+14:02
+the host name.
+14:05
+Since it is having only one Ethernet
+14:07
+connection, we'll take it. We'll give
+14:09
+the IP as 10.1 mask being /24.
+14:14
+And we also change the port status to
+14:17
+on.
+14:19
+Now the second routter whose name will
+14:21
+be 25501A.
+14:24
+This also will be changing the display
+14:26
+name and the host name. Here we have
+14:28
+serial and ethernet connections. So
+14:31
+we'll change the fast ethernet first to
+14:36
+10.2 and the mask /24 and setting the
+14:41
+port status as on.
+14:44
+Now we'll set up the serial connection.
+14:46
+This being the DCE end. After setting
+14:49
+the IP as 20.1 and mask as /24, we'll
+14:53
+set the clock rate to 64,000. We'll set
+14:56
+the port status as on.
+15:03
+Next routter will be 25501B.
+15:07
+Changing the display name and the host
+15:10
+name.
+15:12
+Here also we'll have both Ethernet and
+15:15
+serial connections. So Ethernet
+15:16
+connection will be to the network 30.0.
+15:19
+So the IP will be 30.1/24
+15:22
+mask.
+15:24
+And we'll set the port status as up.
+15:27
+Then the serial connection
+15:30
+is to
+15:31
+20.2 mask being /24 on. This is the DTE
+15:36
+end. We have a DCE end for the next
+15:39
+serial connection. So it's IP 40.1
+15:42
+mask/24.
+15:44
+Clock rate 64,000.
+15:46
+Port status on.
+15:50
+Now the last router which will be
+15:52
+25501c.
+15:54
+Now we'll change its display name and
+15:57
+the host name. Here also we have
+16:00
+Ethernet and serial connection.
+16:04
+Setting the serial connection to the IP
+16:07
+address 40.2 mask/24
+16:11
+and we set the port status as on. Then
+16:17
+we set the Ethernet connection who
+16:20
+connected to 50.0. So it's IP 50.1
+16:23
+mask/24.
+16:25
+Then the port status is on.
+16:33
+Now we'll click on 2621A.
+16:39
+We'll enter
+16:41
+its CLI.
+16:48
+Then we'll exit the interface
+16:49
+configuration. We are in the config
+16:52
+mode.
+16:57
+Now there we'll be entering the command
+16:59
+routter OPF1 and the corresponding line
+17:03
+on each network.
+17:10
+This is how it looks like. only one
+17:13
+entry for 25501A.
+17:16
+We'll do the same. We'll enter it CLI.
+17:22
+We'll exit from the interface
+17:24
+configuration and there also we'll type
+17:27
+in router OPF1.
+17:32
+Then we'll enter the network entries.
+17:37
+So that is 10.0. 0
+17:43
+and 20.0. Then for 25501B,
+17:50
+we'll enter the CLI exit from the
+17:53
+interface configuration and in config
+17:56
+mode,
+17:57
+we'll type in routter OPF1.
+18:02
+Then we'll give the network entry
+18:10
+for 20.0
+18:14
+30.0
+18:21
+and 40.0.
+18:23
+Now the last router 25501c.
+18:26
+We'll repeat the step of entering CLI.
+18:31
+Exiting the interface configuration
+18:34
+in the config mode, we'll type in the
+18:37
+command
+18:39
+routter OSPF1 and give in the network
+18:42
+entry
+18:45
+for 40.0
+18:50
+and 50.0. zero.
+19:00
+Next, we'll click on 2621A.
+19:08
+We'll exit the routter configuration
+19:10
+mode and also the config mode. Then
+19:13
+we'll type in the command show ip OPF
+19:18
+neighbor.
+19:20
+So you can see this entry for 20.1 and
+19:23
+its state is full.
+19:26
+We'll type the same command in
+19:31
+all of the routters for verification.
+19:35
+So this is the routter 25501A.
+19:39
+We'll exit the routter configuration and
+19:42
+exit the config mode.
+19:45
+On typing in the command, we'll get two
+19:47
+entries.
+19:48
+We'll do the same in 25501B.
+19:53
+We exit the routter configuration and
+19:55
+the config mode
+19:59
+and we type in the same command two
+20:01
+entries and the last router 25501C.
+20:08
+Exiting the routter configuration and
+20:11
+config mode.
+20:13
+Then typing in the command, we'll get
+20:16
+one entry.
+20:29
+you will note that the entry for 30.0
+20:33
+and 50.0 were missing there. Here also
+20:36
+we'll see for the show ip root you
+20:39
+didn't see 30.0 and 50.0. So we'll go to
+20:42
+25501B and 251 C to check the state of
+20:46
+its interfaces. In 251B you will see
+20:50
+manually it is set but the status and
+20:52
+protocol are down. That is why we
+20:56
+couldn't see it in this.
+21:01
+We'll repeat the same in 251C
+21:04
+here also manually set but the status
+21:06
+and protocol are down. For this we'll
+21:10
+place two PCs
+21:14
+at both these lands and we give a copper
+21:18
+crossover connection to the faster the
+21:21
+net port.
+21:26
+Now we'll set up the interface
+21:29
+by clicking on the PC desktop IP
+21:32
+configuration
+21:34
+172.16.30.2
+21:36
+2 its mask /24
+21:39
+and its default gateway will be
+21:42
+172.16.30.1.
+21:46
+Now we'll set up the next PC also.
+21:49
+Clicking on it we'll go out to the
+21:52
+desktop option IP configuration
+21:54
+172.1650.2
+21:57
+2 its mask being /24
+22:01
+and its default gateway 172.1650.1.
+22:12
+Now we'll click on 2621A
+22:16
+and we'll see
+22:19
+what is the output for show ip root.
+22:22
+You'll see all the five entries are
+22:24
+there from 30 and 50. Now we'll try
+22:28
+pinging to 30.1
+22:34
+to 30.2
+22:39
+that was also successful.
+22:42
+Then to an IP not in the network so
+22:46
+there the ping will fail.
+22:53
+We'll also check for
+22:57
+the other connection on 50.0 that is
+23:01
+50.2 2
+23:06
+and 50.1.
+References
+23:19
+These are some of the references I used
+23:22
+for the preparation of this material.
+23:26
+That's all for now. Thank you for
+23:28
+watching.

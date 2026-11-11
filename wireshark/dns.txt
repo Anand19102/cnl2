@@ -1,0 +1,701 @@
+Hello all, welcome to this video on
+0:04
+network lab. Today I'll be talking about
+0:06
+DNS packet analysis using wireshark.
+0:10
+Over the course of this presentation, we
+0:12
+will examine how the domain name system
+0:14
+operates at the packet level and we will
+0:16
+interpret an actual DNS query and
+0:18
+response captured using the Wireshark
+0:21
+network protocol analyzer.
+0:24
+Let us begin by understanding what DNS
+0:27
+is. DNS or the domain name system is
+0:29
+often described as the internet's phone
+0:32
+book. Its primary role is to act as a
+0:35
+translation layer, converting the domain
+0:37
+names that we type into the web browser
+0:39
+into numerical IP addresses that
+0:41
+computers use to communicate with each
+0:43
+other.
+0:45
+Additionally, DNS involves a caching
+0:47
+mechanism which is designed to store
+0:49
+previously resolved addresses
+0:51
+temporarily so that repeated lookups can
+0:54
+be avoided.
+0:56
+However, this caching mechanism can
+0:58
+itself introduce certain complications
+1:00
+which we refer to here as the caching
+1:02
+problem.
+Lab Preparation Workflow
+1:05
+Before we begin our packet capture and
+1:08
+analysis, it is necessary to prepare our
+1:10
+lab environment. This involves clearing
+1:13
+any previously cached DNS information so
+1:16
+that our capture reflects a fresh
+1:18
+genuine lookup.
+1:20
+On a Windows system, this is done by
+1:22
+running the command ipconfig / flush
+1:25
+DNS. On a Linux system, the equivalent
+1:28
+command is sudo systemd
+1:31
+resolve
+1:33
+double- flushy caches. In addition, we
+1:37
+must clear the browser cache, which can
+1:40
+be done using the keyboard shortcut
+1:43
+control shift delete.
+1:45
+Once the caches have been cleared, we
+1:48
+proceed to capture injection.
+1:50
+This involves starting Wireshark,
+1:52
+visiting the college website, stopping
+1:55
+the capture and then typing DNS into the
+1:57
+display filter bar to isolate only the
+2:00
+DNS related traffic.
+A) Packet number for DNS query message
+2:04
+Our first question is as follows. We are
+2:08
+asked to locate the first DNS query
+2:10
+message resolving our college website
+2:12
+and also the packet number in the trace
+2:14
+for this DNS query message. It is
+2:17
+important to note that this packet
+2:20
+number is assigned by Vshark purely for
+2:22
+listing purposes and it is not a number
+2:24
+that is actually contained within any
+2:26
+real packet header.
+2:30
+Before answering this question, it is
+2:32
+useful to understand why particular
+2:34
+transport protocols are relevant here.
+2:37
+At the transport level
+2:40
+which is layer four of the network
+2:42
+model, data is moved between
+2:44
+applications. There are two main options
+2:47
+available at this layer. TCP which is
+2:50
+reliable but comparatively slow due to
+2:52
+its three-way handshake setup process
+2:55
+and UDP which is connectionless fast and
+2:58
+requires no handshake.
+3:00
+DNS makes a deliberate choice to use UDP
+3:04
+because DNS lookup messages are very
+3:06
+small in size. Since speed is the
+3:09
+priority in this context, establishing a
+3:12
+heavier TCP connection merely for a
+3:14
+single name lookup would introduce
+3:16
+unnecessary delay across the web.
+3:21
+Returning to our first question, the
+3:22
+answer is packet 192.
+3:26
+This is identified as the first
+3:28
+chronological request made for the
+3:30
+college domain. In the information bar,
+3:33
+this packet reads as standard query
+3:37
+in hexadimal df31 https
+3:41
+me.ac.in.
+3:43
+We also observe packets 1 93 and 194
+3:47
+which represent secondary parallel
+3:50
+queries specifically aa and a type
+3:55
+queries for the same website.
+B) Protocol for query message
+4:03
+Our next question is whether the query
+4:06
+message is sent over UDP or TCP.
+4:12
+To verify this, we check the protocol
+4:15
+column within the Wireshark which
+4:17
+confirms that the query uses UDP. It is
+4:20
+worth noting that DNS only falls back to
+4:22
+using TCP when a payload exceeds 512
+4:26
+bytes. Just as in case of a large
+4:29
+cryptographic
+4:30
+DNS sec keys.
+4:33
+To get this window, we double click on
+4:36
+the packet with the number 192
+4:41
+and we see that
+4:44
+the protocol used here is UDP.
+C) Packet number for DNS response message
+4:51
+The next question asks us to locate the
+4:53
+corresponding DNS response to our
+4:56
+initial query and also the packet number
+4:59
+for this DNS response message and
+5:01
+whether it is received via UDP or TCP.
+5:05
+The response is assigned the frame
+5:08
+number 195
+5:11
+within the capture trace sequence. When
+5:13
+we expand its layout, we see that the
+5:18
+header is confirmed as UDP verifying
+5:22
+that the response like the query was
+5:24
+transmitted over UDP.
+5:31
+Now, how was this response to the DNS
+5:35
+query found? using the message ID.
+5:41
+Like in case of 1 192
+5:45
+it was a hexa decimal number
+5:51
+which was DF31
+5:55
+and it is the same for the response
+5:58
+also.
+D) Source and destination port number for DNS query message
+6:03
+Now the next question is to find the
+6:06
+source and destination port numbers for
+6:08
+the DNS query message.
+6:16
+Now the source port is a dynamically
+6:18
+allocated
+6:20
+ephemeral port specifically port 6407
+6:24
+which is assigned by the client OS. The
+6:27
+destination port is the standardized
+6:29
+well-known port 53 which is reserved for
+6:31
+DNS Damon listening services.
+6:36
+Now for this we need to doubleclick on
+6:38
+the DNS query message with the number
+6:42
+192 and from it on expanding the UDP
+6:45
+section we get the source port and the
+6:48
+destination port
+E) Source and destination port number for DNS response message
+6:51
+correspondingly. What are the source and
+6:53
+destination port numbers for DNS
+6:56
+response message?
+6:58
+For the response, the source port is the
+7:00
+well-known port 53 utilized by the DNS
+7:03
+server to respond to the request and the
+7:05
+destination port is the same client
+7:07
+ephemeral port 6407
+7:10
+which maps directly back to the
+7:12
+initiating application socket.
+7:15
+We do the same process clicking on the
+7:18
+packet with the number 195 expanding the
+7:22
+UDP section to get the source and the
+7:24
+destination port.
+F) IP address to which DNS query message is sent
+7:27
+Next we consider to what IP address is
+7:30
+the DNS query message sent.
+7:35
+Now the question query is targeting the
+7:38
+local DNS resolver at IP address
+7:40
+192.168.1.1
+7:43
+rather than the public web server's IP
+7:46
+address. This occurs because operating
+7:49
+systems query their default gateway
+7:51
+resolver first which then handles the
+7:54
+translation of the external domain name
+7:56
+on the client's behalf. For that we need
+8:01
+to click on the
+8:04
+packet.
+8:06
+Then we go to the section IPv4.
+8:10
+Click on it. Expand to find out the
+8:12
+destination address.
+G) Message ID of query and response and its purpose
+8:16
+Our next question is to find the query
+8:19
+message ID number, response message ID
+8:22
+number and the purpose of this field.
+8:27
+The query message ID is located as a 16
+8:30
+bit hexadimal value which in this case
+8:33
+is DF31 within the frame 192. And the
+8:38
+response message ID is an identical
+8:40
+hexadimal value DF31 found within the
+8:44
+frame 195. The purpose of this field is
+8:48
+to serve as a transaction identifier
+8:50
+which matches an asynchronous response
+8:52
+back to its initiating query.
+H) Length of flag field in DNS message
+8:56
+Moving forward, the next question. What
+8:58
+is the length of the flag field in a DNS
+9:00
+message? Now the entire flag
+9:04
+block spans exactly 16 bits which is
+9:08
+equivalent to two bytes. Clicking on any
+9:11
+of the packet and expanding the DNS
+9:15
+section and expanding the flags section,
+9:18
+we see these 16 bits available.
+I) Flag bit that determines type of message
+9:24
+Next, which bit in the flag field
+9:26
+determines whether the message is a
+9:27
+query or a response. Now that is this is
+9:31
+determined by the QR or query response
+9:34
+flag which indicates the message type.
+9:37
+When this bit has a value zero, it
+9:39
+explicitly indicates that the packet is
+9:41
+an outbound query message. When the bit
+9:44
+value is one, it implicitly indicates
+9:48
+that the packet is an inbound response
+9:51
+message. Now here we click on a packet.
+9:56
+We expand the DNS section and the flags
+10:00
+section and check the first bit. It is
+10:03
+zero which means this is an outbound
+10:06
+query message.
+J) Bits in response message and its purpose
+10:11
+Next question is which bits are used
+10:14
+only in the response message and what is
+10:16
+the function of these bits within the
+10:17
+response message.
+10:20
+There are three such bits. The first one
+10:23
+being the authoritative answer bit or AA
+10:28
+which is the bit five.
+10:33
+A value of one for this indicates that
+10:35
+the reply comes from an official master
+10:37
+server while a value zero indicates that
+10:39
+it comes from an intermediate cache
+10:42
+which functions as a temporary storage
+10:44
+repository. The second is the recursion
+10:47
+available RA a bit which defines the
+10:51
+server capability. A value of one
+10:54
+confirms that the server can actively
+10:56
+traverse the domain hierarchy to solve
+10:59
+the query on the client's behalf while a
+11:02
+value of zero indicates that it cannot
+11:04
+perform this multi-step search.
+11:08
+Third one is the reply code field which
+11:10
+occupies bits 12 to 15 which is a 4 bit
+11:15
+error identification region where a
+11:17
+value of zero signifies success and a
+11:20
+value of three indicates that an NX
+11:22
+domain error has occurred which means
+11:24
+that the domain does not exist.
+K) Number of records in query message
+11:28
+The next question is how many question
+11:30
+records, answer records, authority
+11:32
+records and additional records are
+11:34
+present in the query message.
+11:38
+Now the query message contains exactly
+11:41
+one question record which means that a
+11:45
+single website domain name which we were
+11:48
+trying to find.
+11:51
+It has zero answer record which means
+11:53
+the out question cannot contain answers
+11:57
+yet. It holds zero authority records
+12:01
+since a query does not need to show who
+12:04
+owns or controls the website's security
+12:07
+zones. And finally, it carries zero
+12:10
+additional records because no extra
+12:12
+background details or helper data are
+12:15
+needed just to ask a simple question.
+12:18
+Now to see this we click on the query
+12:21
+message expand the DNS section flag
+12:25
+section. We see these values here.
+L) Number of records in response message
+12:31
+Final question is how many question
+12:33
+records, answer records, authority
+12:35
+records and additional records are
+12:36
+present in the response message. The
+12:40
+response message contains exactly one
+12:42
+question record which is just a repeat
+12:44
+of the original website name we asked
+12:46
+about.
+12:48
+It includes one answer resource record
+12:51
+which proves
+12:53
+the actual numerical IP address
+12:55
+translation that we need to connect to
+12:58
+the site. It has zero authority records
+13:01
+meaning it did not include any extra
+13:03
+official server name to prove who owns
+13:05
+the domain. It carries zero additional
+13:09
+records which shows that no extra
+13:11
+background or verification data was
+13:13
+needed to complete the request. For this
+13:16
+we click on the response message.
+13:20
+Take the DNS section, the flag section
+13:23
+and expand it. And finally we get these
+13:25
+values.
+Demo
+13:32
+Now we'll see a demo of how this
+13:34
+Wireshark capture is done. First we need
+13:37
+to
+13:39
+clear the DNS cache which we did using
+13:43
+the command. Then we are clearing the
+13:47
+browser cache.
+13:49
+After that we need to visit the college
+13:52
+website. Now before that we need to
+13:54
+start the wireshark capture by selecting
+13:57
+the corresponding interface.
+14:02
+We type in the college website address.
+14:17
+Next what we do is we'll
+14:19
+stop the capture and we'll filter the
+14:22
+capture giving the
+14:25
+DNS filter.
+14:27
+Now from that first of all we need to
+14:31
+find the DNS query. So we check for
+14:36
+the row where the first mention of the
+14:38
+website is made and we need to identify
+14:41
+the number there which is 1 192. We need
+14:45
+to check for the protocol that was used
+14:48
+by this. So we double click and see that
+14:51
+it is UDP.
+14:56
+Next we need to find the response for
+15:00
+this. So we look at this number the
+15:02
+message ID and we see another row with
+15:07
+the same message ID which is its
+15:09
+response. Its number is 195.
+15:13
+And to see the protocol that it uses we
+15:16
+double click and see that it is UDP.
+15:29
+Next we go to the DNS query. Double
+15:33
+click on that. And
+15:36
+now we are looking at the source and the
+15:38
+destination port of the DNS query.
+15:45
+We do the same for the response. We
+15:47
+double click and see. So it will be just
+15:49
+the opposite of the other one. the
+15:51
+source and the destination ports.
+16:00
+Now we click on the DNS query to see to
+16:04
+which destination it is sent which is
+16:06
+the local gateway address.
+16:16
+Then we look into the transaction ID of
+16:19
+the DNS query which is DF31
+16:22
+which is the message ID.
+16:25
+Then we need to check on the message ID
+16:28
+for the response. We click on that
+16:31
+particular row and on checking its
+16:34
+details we see that it is the same and
+16:37
+we have already discussed the purpose of
+16:40
+this value. Again
+16:46
+we click on the DNS query
+16:49
+and we see the flags the 16 bit flags
+17:00
+and see that the first bit is zero which
+17:03
+means it is a query.
+17:06
+Now we click on the response. We see the
+17:08
+flags
+17:10
+and flags only in the response are the
+17:12
+authoritative
+17:15
+recursion available
+17:18
+and the
+17:21
+reply code.
+17:30
+Then we click on the DNS query. We check
+17:33
+for the records. There is only one
+17:35
+question record and the rest are zero.
+17:39
+We do the same for the response and we
+17:42
+see that
+17:44
+we have one question record, one answer
+17:46
+record and the rest are zero.
+17:55
+That concludes our packet level analysis
+17:57
+of the DNS query and response captured
+18:00
+using Wireshark. Thank you for watching.

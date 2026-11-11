@@ -1,0 +1,214 @@
+Hello all. Welcome to this video on networking lab. Today I'll be talking about analysis of SMTP protocol using Wireshark.
+This session is structured around five core learning objectives. Packet capture mechanisms, IP address identification, port number analysis, SMTP command decoding, and internet message format encapsulation. Each objective builds upon the previous forming a complete foundation for understanding email communication at the protocol level.
+We'll examine each objective. Let us begin.
+Now SMTP stands for simple mail transfer protocol. It is a standard protocol that defines how mail transfer agents exchange electronic mail across TCP/IP networks formally specified in RFC 5321.
+At its core, SMTP operates at the application layer, layer seven of the OSI model. It runs over TCP, which means every message exchange is reliable and connection oriented before a single command is sent.
+SMTP is a push protocol. The sender initiates the transfer. This distinguishes it from protocols like POP3 and IMAP where the client pulls messages from a server.
+Communication happens through a simple ASCII text based command and response model.
+Every command the client sends and every reply the server sends is plain human readable text.
+This is precisely why Wireshark can display an SMTP session so clearly.
+Finally, SMTP operates on three standardized ports. Port 25 is used for mail transfer between servers.
+Port 587 is the submission port used by mail clients to submit outgoing mail.
+Port 465 is SMTPS, SMTP over an implicit TLS connection.
+Before we analyze packets, it is important to understand the path an email travels from composition to delivery.
+Four distinct agents are involved. The first is mail user agent or MUA.
+It is the email client that user interacts with directly.
+Outlook, Thunderbird, or Gmail, for example.
+It is where the message is composed and sent.
+The second is the mail submission agent
+or MSA.
+When the user clicks send, the MUA hands the message to the MSA over port 587 with authentication.
+The MSA is the first server in the chain.
+The third is the mail transfer agent or MTA. This is responsible for routing the message across the internet from one server to another.
+MTA to MTA communication happens over port 25.
+There may be multiple MTAs involved depending on the route the message takes.
+The fourth is the mail delivery agent or MDA.
+This handles the final step, placing the message into the recipient's mailbox.
+The recipient then retrieves that message using IMAP or POP3 through their own mail user agent.
+So, the complete flow is MUA to MSA over port 587 MSA to MTA over port 25 MTA to MTA over port 25 across the internet, and finally MTA to MDA for local delivery. The recipient's MUA then fetches the messages via IMAP or POP3.
+This is the infrastructure through which every email you have ever sent has traveled. In our Wireshark capture we are observing the MTA to MTA segment of this flow, port 25 server to server in plain view.
+With the transmission flow understood, let us now walk through the SMTP session life cycle, the precise sequence of commands and responses that occur once a TCP connection is established.
+The server always speaks first.
+Immediately after the TCP connection is made, the server sends a 220 greeting announcing that ready to receive commands.
+The client then sends EHLO identifying itself by its domain name. This is not merely a greeting, it is a request for the server to list its supported extensions.
+The server responds with 250 followed by a list of its capabilities.
+These may include auth for authentication, size to advertise the maximum accepted message size, and start TLS to indicate support for encrypted communication.
+Next, the client sends mail from supplying the envelope sender address in angle brackets.
+This is the address the server will use for bounce notifications and error reporting.
+The server replies 250 OK confirming the sender is accepted.
+The client then sends RCPT to specifying the intended recipient.
+If there are multiple recipients, the command is repeated once for each address.
+The server replies 250 OK for each valid recipient.
+At this point, the envelope is complete.
+The server knows who the message is from and who it is going to. The session is now ready to receive the message itself, which we'll cover in the next segment.
+Continuing from where we left off, once the envelope is established, the client sends the data command signaling that it is ready to transmit the message content.
+The server responds with 354 instructing the client to proceed indicating that the message must be terminated with a carriage return line feed period carriage return line feed which is written as crlf.crlf.
+This sequence is the agreed signal that the message is complete.
+The client then transmits the full IMF payload. This is the internet message format content as defined in RFC 5322 structured headers first followed by a blank line followed by the message body.
+Everything between the 354 response and the terminating period is the actual email.
+Once that terminating sequence is received the server replies 250 OK confirming the message has been accepted and queued for delivery.
+The client then sends quit formally closing the session.
+The server replies 221 bye and TCP connection teardown follows the standard four-way FIN sequence that closes the connection at the transport layer.
+That completes the full SMTP session
+life cycle from the 220 greeting to the 221 goodbye.
+Every step is deterministic text-based and fully visible in a Wireshark TCP stream capture.
+Let us now examine each SMTP client command in detail.
+The first is EHLO or it's older counterpart HELO.
+This is the opening command that the client sends to identify itself to the server.
+EHLO goes further. It also requests a list of the extensions that the server supports.
+In modern SMTP EHLO is always used.
+The second is MAIL FROM.
+This declares the envelope sender address and formally initiates the mail transaction.
+It is important to note that this address belongs to the SMTP envelope.
+It is used for error reporting and bounce handling and is independent of the from header that the recipient sees in their mail client.
+The third is RCPT2. This specifies the envelope recipient. If the message is intended for multiple recipients, this command is issued once for each address.
+Each instance receives its own server response. The fourth is data.
+This single command signals that the client is ready to transmit the message body. Everything that follows under the terminating period is treated by the server as the message content in RFC 5322 format.
+These four commands in this order form the complete client-side logic of every SMTP transaction.
+Continuing with the remaining client commands, RSET aborts the current mail transaction and resets the session state, clearing the sender, recipients, and any buffered data without closing the TCP connection.
+The server replies 250 and the session returns to the state it was in after the initial EHLO.
+NOOP performs no operation. It exists to keep an idle connection alive or to test that the server is still responsive. The server simply replies 250 and takes no further action.
+VRFY asks the server to verify whether a given mailbox exists.
+In practice, most servers disable this command or return a generic response as enabling it would allow an attacker to enumerate valid email addresses.
+QUIT request an orderly closure of the SMTP session.
+The server replies 221 and the TCP connection teardown follows.
+Every server reply begins with a three-digit code.
+The first digit indicates the class of the response.
+Those beginning with two indicates a positive completion.
+The requested action was successfully completed.
+Within that class, the specific codes are as follows.
+220 for service ready.
+This is the opening greeting that the server sends immediately after the TCP connection is established before any client command is issued.
+221 for closing channel.
+The server sends this in response to quit, signaling that it is closing the connection.
+250 for requested action okay.
+This is the most common success response.
+It acknowledges EHLO, mail from, receipt to, and the completion of the data transaction.
+354 is start input.
+This is the server's response to the data command.
+It instructs the client to begin transmitting the message body and to terminate it with CRLF.CRLF.
+Normal mail servers like Gmail or Outlook cannot be used for this experiment because they enforce mandatory encryption.
+Each connection is secured with TLS or SSL, which scrambles the data before it leaves your computer.
+In Wireshark, this encrypted traffic appears as unreadable gibberish.
+You simply cannot see the plain text SMTP commands like EHLO or mail from, or can you read the email content.
+Furthermore, these providers block unencrypted ports.
+Port 25 is restricted and ports 587 and 465 require security handshakes that hide the packet payload from view.
+Ultimately, these servers are designed for privacy, specifically to prevent the kind of plain text eavesdropping this lab requires.
+To successfully analyze the protocol, you must use a local unencrypted server like the Python script which generates a visible plain text packet that Wireshark can decode.
+To begin the experiment, first we'll install the server library.
+You open the terminal and run the command py-m pip install aiosmtpd.
+Now, aiosmtpd is an asynchronous RFC compliant Python SMTP server library designed for testing and extending email applications with customizable event handlers.
+The command tells your computer to find the specific Python version, open its built-in installer, and download the aiosmtpd email testing tool directly from the official library.
+This ensures the software is placed in the exact right folder for the system, avoiding conflicts and guaranteeing it works immediately when the code is run.
+Now, next we start the server.
+For this, we type the command py-m aiosmtpd -n -l localhost:8025.
+This command launches a local email server by running the aiosmtpd module using the -n flag to skip permission changes so it runs smoothly on the user account, and -l flag to lock it securely on the computer on port 8025.
+This instantly creates a safe, private testing environment where we can catch and send dummy emails without ever connecting to the outside internet.
+Then configure Wireshark. We open the application and ensure that we select the loopback adapter to start capturing.
+This step is critical because the local traffic never leaves the machine, so standard Wi-Fi or ethernet adapters won't see it.
+Finally, we create the client script. We write a Python program that connects using SMTP lib .SMTP localhost 8025.
+It is vital that we use the standard SMTP class and do not use SMTP SSL or start TLS, as they would encrypt the data and hide the commands we need to analyze.
+The procedure initiates with a script
+utilizing the SMTP lib library to construct an email message with standard headers and transmit it via the send message function to a localhost server operating at port 8025.
+Crucially, the connection is established without TLS, ensuring that the data remains in plain text.
+During the transmission, packet capture software records the network activity.
+A notable analytical challenge arises during the filtering phase.
+The standard SMTP display filter yields no results. This occurs because the network analyzer automatically dissect the protocols based on well-known port assignments, typically 25, 587, or 465, and consequently classifies traffic on the non-standard port 8025 as generic TCP data.
+Now, to resolve the SMTP filter issue in Wireshark, when using the non-standard ports like 8025, first we apply the display filter TCP.port 8025 to isolate raw traffic, as Wireshark defaults to treating this as generic TCP rather than the SMTP.
+Next, we right-click on any packet in the capture and select decode as and explicitly map port 8025 to the SMTP protocol to force the correct dissection. Once confirmed, the protocol column will update to SMTP, enabling the use of SMTP filter and revealing plain text commands like EHLO and mail from in the packet details.
+The visibility of these commands confirm that the communication occurred encryption, validating the hypothesis that SMTP traffic on non-standard ports remain vulnerable to interception unless explicitly configured otherwise or manually decoded by the analyst.
+This module demonstrate the programmatic generation and analysis of unencrypted SMTP traffic.
+The procedure utilizes a Python script to instantiate an email message object assuming assigning the subject SMTP analysis using Wireshark and designating hello at localhost as both the sender and recipient to simulate a local exchange. The message body is populated with a standardized test string to facilitate packet identification.
+Transmission is executed within an exception handling block to ensure robust error reporting. The script establishes a connection to the localhost on port 8025 using the smtplib.SMTP It is crucial to note that this method initiates a plain text connection devoid of TLS. This omission is intentional as it renders the SMTP command sequence visible to network analysis.
+The set debug level method is invoked to output the protocol handshake to the console, providing immediate verification of the command sequence prior to the send message execution.
+Upon completion, the script outputs a successful confirmation or alternatively reports specific connection failures.
+In the subsequent analysis phase using Wireshark, the non-standard port assignment necessitates the use of a TCP port filter rather than the default SMTP protocol filter.
+By isolating traffic on the port 8025, the analyst can observe the raw EHLO, mail from, and data commands in the plain text, thereby empirically validating the unencrypted nature of the transmission and the efficacy of the packet capture methodology.
+First, we'll solve part A of the question, which is to do the IP address identification.
+Now, when we do this experiment here, we observe that both the source and destination IP addresses are identical, which is 127.0.0.1.
+This is a standard loopback address because both the client script and the SMTP server are executing on the same physical machine.
+The network traffic never leaves the computer.
+The other host in this context simply represents the local server process listening on port 20 8025.
+Regarding the client port number, we see that the dest- the source port is a random high-numbered value such as 49155 or 52341.
+So, this falls within the range of 49152 to 65535, known as the dynamic or ephemeral port range. The operating system automatically assigns an available port from this range to the client process for the duration of the specific connection.
+Regarding the server port number, the destination port is consistently 8025.
+This fixed value corresponds exactly to the port specified in our server initialization command and the client connection script.
+This confirms that the client successfully located and communicated with the local SMTP service on the indented port.
+Part D of the question is to analyze the SMTP commands and response codes in the capture.
+First, we locate and filter the relevant packets.
+Ensure that the data capture is active on the loopback adapter. To isolate the specific traffic, we apply the display filter SMTP or tcp.port equal to 8025.
+This will populate the top pane with the list of packets containing the SMTP exchange.
+Next, we inspect the details of a specific packet. We select a packet from the list such as one labeled EHLO or mail from in the info column. Then navigate to the middle pane which has the packet details window.
+We locate the section titled SMTP and expand it by clicking the arrow.
+Then we identify the specific commands and response codes.
+Within the expanded section, distinguish between the requests, comments, commands such as EHLO, mail from, RCPT to, data, and quit and the responses which appear as status codes like 250, 354, and 221.
+Finally, we interpret the meaning of these codes. In the SMTP dialog, specific commands and codes are governing the flow of data.
+First, the client initiates the session with the EHLO or extended hello.
+This command not only introduces the client, but also requests a list of features supported by the server.
+Once the session is established, the client uses RCPT2 to explicitly declare the recipient's email address, ensuring the server knows where to deliver the message.
+Next, the client sends the data command.
+This signals that the client is ready to begin transmitting the actual content of the email body.
+In response, the server issues a 354 ready code.
+This is a critical instruction authorizing the client to start sending the mail data with the specific requirement that the transmission must end with a single dot on a new line.
+Now, we'll solve section E of the question, which is to extract the internet message format or IMF content from the captured traffic.
+First, we locate the data transmission in the Wireshark packet list. Identify the packet containing the data command.
+The actual email content is not in this packet, but in the subsequent packet sent immediately after the server responds with a 354 start mail input.
+Look for the next client to server packet, which is often labeled in the info column as a TCP segment of a reassembled PDU.
+Then, we expand the packet details. We select the specific data packet in the middle pane known as the packet details window. We find and expand the section labeled SMTP.
+Within this tree, we locate and expand the field named data or message content.
+Finally, we analyze the IMF components.
+The text revealed in this field comprises three distinct parts.
+The email headers located at the top.
+These include the standard fields as from, to, subject, date, message ID, and content type.
+The email body, following the headers and a blank line, you'll find the actual message text written in the script.
+The terminator, at the very end of the data, observe a single line containing only a period.
+This character signals to the SMTP server that the transmission of the email content is complete.
+Now, this structure ensures that the server completely passes the headers and body of the message.
+Now, these are some of the screenshot of the sample outputs that we have. Now, this image here represents a terminal showing a successful session running a local SMTP debug server on port 8025. The terminal output confirms the receipt of an unencrypted email with the subject SMTP analysis using Wireshark sent between local addresses. This log verifies that the Python script established a plain text connection and delivered the message, providing the necessary data for subsequent packet analysis in Wireshark.
+The other terminal screenshot shows the execution of a Python script send_email.py which I explained before.
+This initiates an unencrypted SMTP session with a local debug server. The output logs the complete protocol handshake beginning with EHLO command and proceeding through the mail from and receipt to transactions all acknowledged by server response code 250 okay.
+The client subsequently issues the data command receiving authorization code 354 to transmit the message payload which includes the subject SMTP analysis using Wireshark and a test body.
+The session concludes with a final 250 OK confirmation and a 221 response to the quit command empirically verifying the successful delivery of plain text email traffic suitable for network packet analysis.
+This is a screenshot of send email.py.
+Now, this is the answer for the first part of the question which is to find out the source and destination IP.
+Here it is colon colon one which is an IPv6 representation. When converted to IPv4, it's 127.0.0.1.
+Then part B of the question was to find the client port which is the source port here 8025 and part C will have the destination port which is the server port which is 55132.
+Now, this is the sample output for part D which was to find out some of the SMTP requests and response codes. This is for 250 OK.
+That means the requested mail action was OK and completed.
+This is for 221 bye where we see that the service is closing the transmission channel 221.
+This is a sample output of part E which was to extract the internet message protocol that is the internet message format, IMF.
+So, we have this part here with the headers, subject, from, to, etc.
+Then some details on the content and the text message followed by the termination characters.
+Now, we look at the sample demo of the same.
+So, here we'll take two terminals.
+And in one, we start the local SMTP mail server. And in the other one, we'll run the send email program written in Python.
+So, before running that one, the program in Python, we need to start the Wireshark because it should start capturing the packets one before the program starts. So, the mail server is already running. Now, we click on Wireshark.
+Then we need to listen to the loopback adapter because the packets are not leaving the system.
+We click on it and start the capture process.
+After starting the capture, we run the program, the Python program.
+And in that, we can see all the uh request response codes, transfers that has happened, the protocol handshakes that has been done for sending the email.
+Now, we see that it's all TCP. Even if you give a filter like SMTP, we are not going to get an answer. So, what we do is we'll check for the port 8025, which we have used for the SMTP communication. We click on one packet, any of those. Then we do a decode as changing the current value to SMTP.
+So, all the packets which used the port 8025 will be denoted as the type SMTP.
+Pressing okay, so all those become SMTP.
+Now, we give in the filter as SMTP.
+So, we'll get the unencrypted communication that happened between the server and client.
+From this, you can see the source and the destination IP addresses.
+Then, we also get information on the source port 8025, destination port 55078.
+Then, we need to check on the request and response codes. We click on each packet and go to the SMTP section.
+We'll get the responses. For example, here EHLO is the command.
+Then, there is 250 okay.
+So, for each packet, this can be done.
+This is another 250 okay.
+This is having the command mail.
+Another 250 okay.
+Then, there is RCPT 2.
+250 okay for that.
+Then, there is data.
+Then, we have the 354 start mail input.
+Then, there is the simple mail transfer protocol starts with a period.
+Then, there is 250 okay for that.
+The quit message.
+And finally 221 bye.
+Where service closing transmission channel message is displayed. Now we need to find the IMF. For that after the data after the 354 we click on that packet.
+In the details we see the IMF details, the headers and the uh test message and the terminator characters.
+That's all for now. Thank you for watching.

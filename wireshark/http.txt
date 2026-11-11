@@ -1,0 +1,934 @@
+Hello all, welcome to this video on
+0:03
+networking lab. Today I'll be talking
+0:05
+about HTTP packet analysis using
+0:08
+Wireshark. The question here is to
+0:11
+capture and analyze HTTP packets using
+0:14
+Wireshark. From it we take in the HTTP
+0:18
+get request and response headers and
+0:20
+identify the source and destination IP
+0:22
+addresses, client request details, URL,
+0:25
+user agent and HTTP version uh used by
+0:28
+the browser.
+0:31
+We are breaking down HTTP the hypertext
+0:34
+transfer protocol. This is the
+0:36
+fundamental language that allows your
+0:37
+web browser to talk to servers and load
+0:39
+the websites you use every day. First,
+0:43
+what is it? HTTP is an application layer
+0:46
+protocol that runs on top of TCP IP.
+0:49
+Think of it as a set of strict
+0:50
+formatting rules. It defines exactly how
+0:54
+a client like your browser and a server
+0:56
+exchange messages. Crucially, HTTP is
+0:59
+stateless. It means that the server
+1:01
+treats every single request as a brand
+1:03
+new interaction with no memory of what
+1:05
+you did a second ago.
+1:09
+How does it work?
+1:11
+It follows a simple request response
+1:13
+cycle. It starts when the client sends
+1:15
+an HTTP request. The most common type is
+1:18
+a get request used to retrieve data. The
+1:21
+server receives this, process it, and
+1:24
+sends back an HTTP response. This
+1:26
+response always contain two key things.
+1:29
+A status code like 200 okay or 404 not
+1:33
+found and the body which is the actual
+1:35
+content like an HTML page or an image.
+1:39
+You will often see three main versions
+HTTP versions comparison
+1:41
+of this protocol. HTTP 1.0 is the
+1:44
+oldest.
+1:46
+It opens a new connection for every
+1:48
+single request which makes it slow and
+1:50
+inefficient. HTTP 1.1 is the standard
+1:53
+you will see in most labs. It introduced
+1:56
+persistent connection allowing multiple
+1:58
+requests to fly over a single open
+2:00
+connection. Finally, HTTP2 is the modern
+2:04
+standard. It uses a binary format
+2:06
+instead of text and support
+2:08
+multipplexing,
+2:09
+meaning it can send many requests
+2:12
+simultaneously without waiting for
+2:13
+others to finish.
+2:16
+Finally, how do we see this in action?
+2:19
+In network analysis tools like
+2:20
+Wireshark, you can inspect these
+2:22
+messages directly. The HTTP version
+2:25
+always appears in the very first line of
+2:27
+each request and response packet. By
+2:30
+expanding the HTTP packet details in
+2:32
+Wireshark, you can exactly see which
+2:35
+version is being used and analyze the
+2:37
+headers and body of the traffic.
+Anatomy of HTTP GET request
+2:41
+Let's dissect the anatomy of a standard
+2:43
+HTTP get request.
+2:46
+Every request begins with a request
+2:48
+line. In our example, get/index.html.
+2:53
+HTTP 1.1 tells the server we want to
+2:56
+retrieve the index.html HTML file using
+2:58
+version 1.1 of the protocol.
+3:01
+Following this are the header fields
+3:03
+which provide crucial metadata. The host
+3:06
+header specifies the domain essential
+3:09
+for servers hosting multiple sites.
+3:13
+The accept headers tells the server what
+3:15
+formats, languages, and encodings the
+3:17
+client can handle like text/hml or gip
+3:21
+compression.
+3:23
+The user agent string identifies the
+3:26
+specific browser and operating system
+3:27
+making the request.
+3:30
+Finally, the connection keep alive
+3:31
+header instructs the server to keep the
+3:34
+TCP connection open for future request,
+3:36
+thus improving efficiency. A blank line
+3:39
+marks the end of these headers.
+Anatomy of HTTP GET response
+3:45
+Now let us look at the HTTP response. It
+3:48
+starts with a status line HTTP 1.0
+3:51
+window 1.1 200 okay this confirms the
+3:55
+protocol version the success status code
+3:57
+200 and the recent phrase okay key
+4:01
+response headers follow the date shows
+4:03
+when the response was generated
+4:06
+last modifies tells the client when the
+4:08
+file was last changed on the server
+4:10
+which is vital for caching content type
+4:13
+defines the MIME type such as text/hml
+4:16
+so the browser knows how to render the
+4:18
+data content length specifies ies the
+4:21
+exact size of the body in bytes and
+4:23
+content encoding indicates if the data
+4:25
+is compressed for example with gip.
+4:29
+After another blank line the message
+4:31
+body contains the actual content like
+4:33
+the HTML code of the web page.
+HTTP status code categories
+4:37
+Finally we categorize responses using
+4:39
+HTTP status codes. Those starting with
+4:42
+one areformational indicating the
+4:45
+request was received and is processing.
+4:47
+Those beginning with two signify
+4:49
+success. The most common is 200 okay
+4:52
+meaning the request was fulfilled
+4:54
+perfectly. Those beginning with three
+4:56
+represent redirection. For instance 3.1
+5:00
+means the resource has moved permanently
+5:02
+while 304 not modified tells the client
+5:05
+to use its cached version saving
+5:08
+bandwidth.
+5:11
+Those beginning with four indicate
+5:12
+client errors. 404 not found means the
+5:16
+server couldn't locate the resource and
+5:18
+403 forbidden means the access is
+5:21
+denied. Lastly, those beginning with
+5:23
+five are server errors. 500 internal
+5:26
+server error is a generic message
+5:28
+indicating the server failed to fulfill
+5:31
+a valid request due to an unexpected
+5:33
+condition.
+Source and destination IP addresses
+5:36
+Every IP packet carries two crucial
+5:38
+addresses. The source IP identifying who
+5:41
+sent it and the destination IP
+5:43
+identifying who should receive it. In a
+5:45
+get request, the source is your machine.
+5:47
+Either your local IP or your natted
+5:50
+public IP and the destination is the web
+5:53
+server. In the response, these flip. The
+5:56
+server becomes the source and your
+5:57
+machine becomes the destination.
+6:00
+Wireshark displays these in the internet
+6:03
+protocol layer. Remember the stack. HTTP
+6:06
+HTTP sits at the application layer. TCP
+6:10
+at the transport layer, the ports are 80
+6:13
+or43.
+6:15
+IP at the network layer where the
+6:16
+addresses live and Ethernet at the link
+6:19
+layer. Expanding the IP tree in
+6:21
+Wireshark reveal these addresses
+6:23
+instantly.
+Starting a capture and filtering
+6:27
+To begin, select your active network
+6:29
+interface like the Wi-Fi or Ethernet and
+6:32
+click the blue shark fin icon. Clear
+6:35
+your browser cache first. If you don't,
+6:37
+the server might send a 34 not modified
+6:40
+response from its cache instead of a
+6:42
+fresh 200. Okay, which skews our
+6:44
+analysis. To isolate traffic, type HTTP
+6:48
+in the display filter bar. This hides
+6:50
+noises like DNS and TCP handshakes. This
+6:54
+only works for un unencrypted HTTP
+6:57
+sites. HTTPS traffic on port 43 is
+7:01
+encrypted and will appear as gibberish.
+7:03
+Here
+7:05
+the interface has three panes. The top
+7:08
+list packets. The middle details the
+7:11
+layers and the bottom shows row hex
+7:14
+bytes.
+MIME types and character sets
+7:16
+Now let us look at the content
+7:17
+negotiation. The accept header lists
+7:20
+MIME types the client handles such as
+7:22
+text/html for pages or application/json
+7:26
+for data. The wildcard star/star means
+7:30
+the client accepts anything. Then there
+7:33
+is the accept encoding header which
+7:35
+tells the server which compression
+7:36
+algorithms are supported. Commonly gip,
+7:39
+deflate or br to reduce the file size.
+7:43
+Regarding the character set, modern
+7:45
+browsers often omit the accept character
+7:48
+set header because UTF8 is now the
+7:50
+international standard. Instead, the
+7:53
+server explicitly declares the character
+7:56
+set in the responses content type
+7:58
+header. For example, text/ HTML car set
+8:01
+is equal to UTF8.
+User agent and URL reconstruction
+8:06
+The user agent header is your browser's
+8:08
+ID card. send with every get it reveals
+8:11
+the browser name, version, and operating
+8:13
+system like Chrome on Windows 10.
+8:16
+Servers use this for analytics or to
+8:19
+serve specific content. Regarding the
+8:21
+URL, the full address isn't sent as one
+8:24
+string. It is reconstructed from two
+8:26
+parts.
+8:27
+The host header example www.example.com
+8:32
+and the path in the request line which
+8:34
+is /path/page.html.
+8:38
+Together they form the http
+8:41
+col//www.acample.com/path/page.html.
+Round trip time analysis
+8:48
+Finally, we measure the roundtrip time
+8:50
+or RT. This is the total elapse time
+8:53
+from when your browser sends the get
+8:55
+request until the first response packet
+8:57
+arrives. It includes network latency and
+9:00
+server processing time. To calculate the
+9:02
+roundtrip time in Wireshark, we note the
+9:04
+time value for the get packet. Then we
+9:07
+find the matching response packet in the
+9:09
+same TCP stream. Then we subtract the
+9:12
+get time from the response time. For
+9:14
+example, if the response arrives at
+9:16
+1.456 seconds and the request is sent at
+9:20
+1.234 seconds, your RT is 222 seconds.
+Sample screenshots of output
+9:27
+Now we'll begin solving the problem we
+9:29
+discussed in the beginning. We'll begin
+9:31
+by clearing the browser cache whose
+9:33
+screenshot is attached. Here we are
+9:36
+clear data from all the time.
+9:40
+And finally after ensuring that the
+9:43
+cache is cleared we'll move on to the
+9:45
+part A of the question which is asking
+9:47
+us to find out the source IP address and
+9:50
+destination IP address of the first get
+9:52
+message. Now it is highlighted here in
+9:55
+this red box the source address and the
+9:57
+destination address. Now the IP address
+10:00
+here is too long because it is an IPv6
+10:03
+address like
+10:06
+it has 128 bits. Unlike the older
+10:11
+shorter IPv4 addresses, IPv6 was created
+10:15
+to solve a critical problem because the
+10:18
+world ran out of IPv4 addresses. The
+10:21
+IPv6 addresses are structured into eight
+10:24
+blocks of fourdigit alpha numeric
+10:26
+hexadesimal characters that are
+10:28
+separated by columns.
+10:32
+Part B of the question asks for the
+10:34
+medium format, language encoding and
+10:36
+character set that the client can accept
+10:39
+which is again highlighted in this red
+10:41
+box.
+10:43
+Now here in this except line we can see
+10:45
+explicit formats like text/ HTML for
+10:48
+HTML files, XML for the application XML
+10:52
+files and several modern image formats
+10:54
+like AV if and webp
+10:59
+star/star acts as the wild card meaning
+11:01
+it can fall back to accept any other
+11:03
+format if necessary. Then in the accept
+11:07
+language header, it specifies that the
+11:10
+client prefers American English but will
+11:12
+accept general English as a backup. The
+11:16
+value Q equal to.9 is a quality value
+11:19
+indicating the preference weight. While
+11:22
+the older browsers used an explicit
+11:24
+accept caret header, modern browsers
+11:28
+rely on accept encoding header
+11:32
+to manage the compressed text
+11:34
+transformation.
+11:36
+implicitly handling standard universal
+11:38
+encodings like UTF8 for the accepted
+11:41
+document types. Then at the end of each
+11:43
+line you see a forward slash r and
+11:48
+forward slashn. Now that is a carriage
+11:51
+return /ash r which moves the cursor
+11:54
+back to the beginning of the current
+11:56
+line and slashn moves the cursor down to
+11:58
+the next row. Now this character
+12:01
+combination represent a control
+12:03
+character sequence used in networking
+12:05
+and programming to mark the end of a
+12:07
+line of text. HTTP standard requires
+12:10
+every single
+12:13
+request header line to strictly end with
+12:16
+this character combination. Now at the
+12:19
+bottom of the headers, you will see a
+12:21
+standalone / r/n. This blank line tells
+12:24
+the receiving server that the headers
+12:26
+are done and the text request is now
+12:29
+complete.
+12:32
+Part C of the question asks us to find
+12:34
+out the URL of the website and the user
+12:36
+agent. Now
+12:39
+the area highlighted in this red box
+12:42
+will give us information regarding it.
+12:44
+Now URL is bu built from the host and
+12:48
+the URI. So the host year is
+12:53
+neverssl.com
+12:55
+and then the URI is a slash. So when
+13:00
+combined URL will be http/nessl.com/
+13:06
+then we are looking for the user agent
+13:09
+which is highlighted in this box here.
+13:12
+So this mentions that the user is
+13:14
+running a Google Chrome browser version
+13:16
+148.0 zero on a 64-bit Windows 10
+13:20
+operating system.
+13:23
+Now, part D of the question is asking
+13:26
+for the source IP and destination IP
+13:28
+address of the first response message.
+13:31
+Now, in part A
+13:33
+of the question, the client computer was
+13:36
+the source sending data out and the web
+13:38
+server was the destination receiving it.
+13:40
+Now in this question part D, the web
+13:44
+server is now the source sending the
+13:46
+data back and the client computer is the
+13:48
+destination receiving the web page which
+13:50
+is highlighted in the source and
+13:52
+destination given here.
+13:55
+Option E is asking for the status codes
+13:58
+for the first response message which is
+14:00
+highlighted in this red box which is 200
+14:03
+which means okay.
+14:07
+Part F
+14:08
+requires data regarding when the HTML
+14:11
+file that you are retrieving was last
+14:13
+modified by the server. Just highlighted
+14:17
+in this red box here.
+14:20
+So it states that this specific HTML
+14:23
+file has not been altered or updated
+14:25
+since June 29, 2022 at 12 233 a.m. Green
+14:32
+Witch Meime.
+14:36
+Part G of the question asks for the
+14:38
+value of content length field of the
+14:40
+first response message. Again
+14:42
+highlighted here. It states that
+14:45
+the client browser
+14:48
+has an exact size of the payload entity
+14:51
+body that is a row HTML code being
+14:54
+returned by the server as,900
+14:58
+bytes.
+15:02
+Part H of the question asks for how long
+15:05
+it took from the time get message was
+15:08
+sent until the response message was
+15:11
+received.
+15:13
+Now for this we'll be analyzing the TCP
+15:16
+stream.
+15:18
+Analyzing the TCP stream for the
+15:20
+roundtrip time is essential because it
+15:22
+provides a granular per packet latency
+15:25
+metrics within the context of a specific
+15:27
+connection rather than just an aggregate
+15:30
+network statistics.
+15:32
+Unlike basic tools like ping which
+15:34
+measure ICMP echo request, Wireshark
+15:37
+captures the actual application layer
+15:39
+traffic allowing you to measure the time
+15:41
+it takes for a specific data segment to
+15:44
+be acknowledged by the receiver.
+15:47
+Now we are filtering out the TCP stream
+15:50
+using a stream index. Now a stream index
+15:53
+is an internal unique identifier
+15:56
+assigned to each distinct TCP or UDP
+15:59
+conversation based on its five tuple
+16:02
+source IP, destination IP, source port,
+16:05
+destination port and protocol.
+16:09
+It allows you to isolate, filter, and
+16:11
+analyze specific socket to conversations
+16:14
+within a capture file containing
+16:16
+hundreds or thousands of intertwined
+16:18
+packets.
+16:21
+Now, how RT is
+16:24
+calculated?
+16:26
+We'll take the epoch arrival time for
+16:29
+both the get request and get response
+16:34
+inside the TCP stream.
+16:37
+Now the epoch arrival time represents
+16:39
+the precise time stamp when the packet
+16:41
+arrived measured as the total number of
+16:44
+seconds elapsed since January 1, 1970
+16:47
+which is Unix epoch time.
+16:50
+And we subtract these two
+16:55
+in the screenshots we'll get an answer
+16:57
+of
+16:59
+351493
+17:01
+seconds or 351.493
+17:04
+milliseconds.
+17:06
+Finally, we have the part I of the
+17:09
+question which asks for the HTTP version
+17:12
+of the browser which is highlighted in
+17:14
+this red box here which is 1.1.
+Demo
+17:21
+Now we look into a demonstration of the
+17:24
+same.
+17:26
+The first part told us to clear the
+17:29
+browser cache which is done here. We'll
+17:31
+go into the settings
+17:34
+and click on the option for
+17:38
+deleting the browsing data.
+17:42
+when we delete the data from all time.
+17:46
+Clearing all the cookies and cache
+17:53
+and after this we'll click on the
+17:55
+wireshark
+17:58
+and we wait for some time till it's
+18:00
+detecting all the active interfaces.
+18:07
+Now we'll see Wi-Fi is active here.
+18:09
+We'll click on it and then click on the
+18:11
+blue fin. And now it's capturing packet
+18:14
+in real time.
+18:22
+We'll take the browser and visit a
+18:24
+website http/
+18:30
+www.neversssl.com. neversssl.com.
+18:39
+We wait till the website is loaded so
+18:42
+that we'll be able to capture the HTTP
+18:45
+request and response in the Wireshark
+18:48
+while this happens.
+18:54
+Now we got the website and we'll be
+18:57
+clicking on some of these links so that
+19:00
+we can capture all those packets in
+19:02
+Wireshark.
+19:04
+After that we minimize it and into the
+19:07
+display filter we type HTTP and filter
+19:09
+out the packets. We click on the first
+19:12
+get request
+19:15
+from it. We'll get the source and the
+19:17
+destination IP which is IPv46.
+19:29
+We also get further information like
+19:33
+the HTTP header details on
+19:36
+the type of data it accepts, the
+19:39
+language, the encoding.
+19:47
+Then we have the
+19:50
+URI information, host information which
+19:52
+is combined to get the URL.
+19:56
+Then there is the user agent
+19:57
+information.
+20:03
+Now we take its corresponding response
+20:06
+header.
+20:10
+From that we'll get the source and
+20:11
+destination IP which is the reverse of
+20:13
+the request.
+20:16
+Then we get the status code and its
+20:19
+description which is 200. Okay.
+20:24
+Then the last modified time of the HTML
+20:27
+file.
+20:32
+Then the content length which is,900
+20:34
+bytes.
+20:44
+Now we take up the TCP stream to analyze
+20:47
+it in order to find the roundtrip time.
+20:52
+So what we do here is we'll go and find
+20:55
+the stream index value here
+20:59
+which is 29.
+21:02
+Can take any of these packet and see the
+21:04
+header. You'll see the
+21:08
+stream index as 29.
+21:12
+So from this TCP we are going to take a
+21:17
+request and response.
+21:20
+So click on the request
+21:24
+from it. We'll extract the epoch arrival
+21:28
+time.
+21:33
+We click on it. We copy the value. Paste
+21:37
+it.
+21:38
+Then we go for the HTTP response. For
+21:41
+that
+21:43
+we click on it. We take its epoch
+21:46
+arrival time.
+21:50
+We click on it. Copy value and paste it.
+21:54
+And when we take a difference of both,
+21:56
+we'll get the roundtrip time.
+21:59
+Finally, we have been asked to find out
+22:01
+the HTTP version. So we can click on any
+22:05
+of these and check in the header. we'll
+22:08
+get it as 1.1.
+22:16
+That's all for now. Thank you for
+22:17
+watching.

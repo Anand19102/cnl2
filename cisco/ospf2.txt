@@ -1,0 +1,378 @@
+================================================================================
+EXPERIMENT: OSPF DYNAMIC ROUTING IMPLEMENTATION IN CISCO PACKET TRACER
+================================================================================
+
+--------------------------------------------------------------------------------
+1. EXAM-READY ALGORITHM
+--------------------------------------------------------------------------------
+Step 1: Start Cisco Packet Tracer and create a new topology.
+Step 2: Place 4 Cisco Routers (model 2621XM: 2621A, 2501A, 2501B, 2501C) and 
+        2 Generic PCs (PC-B on LAN 172.16.30.0, PC-C on LAN 172.16.50.0).
+Step 3: Power off routers 2501A, 2501B, and 2501C, install the WIC-2T serial 
+        interface card into slot 0 of each, and power them back on.
+Step 4: Establish physical cable connections:
+        - Copper Crossover cable: Connect 2621A (Fa0/0) to 2501A (Fa0/0).
+        - Serial DCE/DTE cables: Connect 2501A (Se0/0) to 2501B (Se0/0), and 
+          2501B (Se0/1) to 2501C (Se0/0).
+        - Copper Crossover cables: Connect 2501B (Fa0/0) to PC-B and 2501C (Fa0/0) 
+          to PC-C.
+Step 5: Configure IP address, subnet mask (255.255.255.0), and default gateway 
+        on the PCs:
+        - PC-B: IP 172.16.30.2, Subnet Mask 255.255.255.0, Gateway 172.16.30.1
+        - PC-C: IP 172.16.50.2, Subnet Mask 255.255.255.0, Gateway 172.16.50.1
+Step 6: Access each router via CLI and enter Global Configuration mode:
+        - Set the hostname.
+        - Configure IP addresses and subnet masks on all connected interfaces.
+        - Issue 'no shutdown' on every interface.
+        - Set 'clock rate 64000' on the DCE serial interfaces (2501A Se0/0 and 
+          2501B Se0/1).
+Step 7: Enable the OSPF routing process on each router using:
+        'router ospf 1'
+Step 8: Advertise directly connected networks using wildcard masks and Area 0:
+        'network <network_id> <wildcard_mask> area 0'
+        (For a /24 network, use wildcard mask 0.0.0.255).
+Step 9: Verify OSPF neighbor adjacencies using the command:
+        'show ip ospf neighbor'
+        Confirm that neighbor states reach 'FULL'.
+Step 10: Inspect the routing table on each router using:
+         'show ip route'
+         Verify that all 5 subnets appear:
+         - Directly connected networks flagged with 'C'.
+         - Remote networks learned via OSPF flagged with 'O' along with 
+           administrative distance and cost [110/cost].
+Step 11: Verify end-to-end reachability using the 'ping' command:
+         - Test ping from 2621A to 172.16.30.2 and 172.16.50.2.
+         - Confirm successful receipt of ICMP Echo Replies (!!!!!).
+Step 12: Save running configurations to NVRAM using 'copy running-config startup-config'.
+Step 13: Stop.
+
+
+--------------------------------------------------------------------------------
+2. ESSENTIAL THEORY & CONCEPTS
+--------------------------------------------------------------------------------
+A. Routing vs. Forwarding:
+- Forwarding: The data plane action of moving a packet from an ingress interface 
+  to the appropriate egress interface based on destination IP lookup in the FIB / 
+  routing table ("following the road signs").
+- Routing: The control plane process of discovering network topologies, sharing 
+  reachability data, and constructing the routing table ("drawing the map"). 
+  OSPF is the mapmaker.
+
+B. How Link-State Routing (OSPF) Works:
+1. Link Discovery: Each router discovers its directly connected links, interface 
+   states, and associated metric costs.
+2. Link-State Flooding: Routers generate Link-State Advertisements (LSAs) and 
+   flood them out all interfaces. Neighbors forward LSAs to other routers without 
+   sending them back on the incoming link.
+3. Link-State Database (LSDB): Through synchronized flooding, every router in the 
+   area builds an identical topological map (LSDB) of the entire network.
+4. Shortest Path Tree (SPT): Each router independently runs Dijkstra's Shortest 
+   Path First (SPF) algorithm on the identical LSDB, placing itself at the root 
+   to determine the lowest-cost loop-free path to every destination subnet.
+
+C. OSPF Metric: Cost
+- Path Cost is calculated as:
+    Cost = Reference Bandwidth / Interface Bandwidth
+- Default Reference Bandwidth in Cisco IOS is 10^8 bps (100 Mbps).
+  * FastEthernet (100 Mbps) : 100 / 100 = 1
+  * GigabitEthernet (1000 Mbps) : 100 / 1000 = 1 (rounds up to minimum cost 1)
+  * Serial T1 (1.544 Mbps) : 100 / 1.544 = 64
+- Total path cost is the cumulative sum of egress interface costs along the path.
+
+D. Administrative Distance (AD):
+- OSPF has a default Administrative Distance of 110.
+- An OSPF route entry displays as [110/cost] in the routing table (e.g., [110/65]).
+
+E. OSPF Process ID:
+- Configured via 'router ospf <process-id>' (range: 1 to 65535).
+- The process ID is locally significant to that specific router instance only. 
+  Routers with different process IDs can form neighbor relationships without issue.
+
+F. Wildcard Masks:
+- OSPF network statements use wildcard masks, not subnet masks.
+- Wildcard rules:
+  * Binary 0 = "Must match this exact bit".
+  * Binary 1 (255) = "Do not care / accept any bit value".
+- For /24 (Subnet Mask: 255.255.255.0):
+  * Wildcard = 255.255.255.255 - 255.255.255.0 = 0.0.0.255.
+  * Tells the router: match the first 3 octets exactly, ignore the last octet.
+
+G. OSPF Areas & Backbone:
+- In large networks, flooding can cause CPU and bandwidth saturation. Dividing the 
+  network into Areas isolates link-state changes and confines flooding.
+- Area 0 (Backbone Area): Central core to which all other areas must connect.
+- Area Border Router (ABR): A router with interfaces attached to two or more areas.
+- In this lab, all routers reside in Area 0 (Single-Area OSPF; no ABR).
+
+H. OSPF Neighbor Discovery (Hello Protocol):
+- Routers send periodic Hello packets (multicast to 224.0.0.5) to detect neighbors.
+- Adjacency formation requirements:
+  * Matching Area ID.
+  * Matching Hello and Dead intervals.
+  * Matching Subnet Mask on the shared link.
+  * Matching Authentication (if configured).
+- State 'FULL' indicates neighbor LSDBs are completely synchronized.
+- Dead Timer: Countdown timer. If no Hello is received within the Dead interval, 
+  the neighbor is declared down, an LSA update is flooded, and routes recalculate.
+
+
+--------------------------------------------------------------------------------
+3. TOPOLOGY & ADDRESSING TABLE
+--------------------------------------------------------------------------------
+Hardware:
+- 4 Cisco 2621XM Routers (2621A, 2501A, 2501B, 2501C)
+- 2 Generic PCs (PC-B on LAN 30.0, PC-C on LAN 50.0)
+- WIC-2T serial modules on 2501A, 2501B, and 2501C
+
+Cabling:
+- Copper Crossover: 2621A Fa0/0 to 2501A Fa0/0, 2501B Fa0/0 to PC-B, 2501C Fa0/0 to PC-C.
+- Serial DCE/DTE: 2501A Se0/0 to 2501B Se0/0, 2501B Se0/1 to 2501C Se0/0.
+
+Visual Topology:
+[2621A] (Fa0/0: 172.16.10.1)
+   |
+   | [172.16.10.0/24] (Copper Crossover)
+   |
+[2501A] (Fa0/0: 172.16.10.2)
+        (Se0/0: 172.16.20.1 - DCE, clock rate 64000)
+   |
+   | [172.16.20.0/24] (Serial DCE/DTE Cable)
+   |
+[2501B] (Se0/0: 172.16.20.2 - DTE)
+        (Fa0/0: 172.16.30.1) ------> [PC-B: 172.16.30.2/24 | GW: 172.16.30.1]
+        (Se0/1: 172.16.40.1 - DCE, clock rate 64000)
+   |
+   | [172.16.40.0/24] (Serial DCE/DTE Cable)
+   |
+[2501C] (Se0/0: 172.16.40.2 - DTE)
+        (Fa0/0: 172.16.50.1) ------> [PC-C: 172.16.50.2/24 | GW: 172.16.50.1]
+
+Addressing Table (All Subnet Masks: 255.255.255.0 / Wildcard: 0.0.0.255):
++---------+-----------------+---------------+---------------+-------------------------+
+| Device  | Interface       | IP Address    | Subnet Mask   | Link Description        |
++---------+-----------------+---------------+---------------+-------------------------+
+| 2621A   | FastEthernet0/0 | 172.16.10.1   | 255.255.255.0 | LAN cross-link to 2501A |
+| 2501A   | FastEthernet0/0 | 172.16.10.2   | 255.255.255.0 | LAN cross-link to 2621A |
+|         | Serial0/0       | 172.16.20.1   | 255.255.255.0 | WAN to 2501B (DCE, 64k) |
+| 2501B   | Serial0/0       | 172.16.20.2   | 255.255.255.0 | WAN to 2501A (DTE)      |
+|         | FastEthernet0/0 | 172.16.30.1   | 255.255.255.0 | LAN Gateway for PC-B    |
+|         | Serial0/1       | 172.16.40.1   | 255.255.255.0 | WAN to 2501C (DCE, 64k) |
+| 2501C   | Serial0/0       | 172.16.40.2   | 255.255.255.0 | WAN to 2501B (DTE)      |
+|         | FastEthernet0/0 | 172.16.50.1   | 255.255.255.0 | LAN Gateway for PC-C    |
+| PC-B    | FastEthernet0   | 172.16.30.2   | 255.255.255.0 | Default GW: 172.16.30.1 |
+| PC-C    | FastEthernet0   | 172.16.50.2   | 255.255.255.0 | Default GW: 172.16.50.1 |
++---------+-----------------+---------------+---------------+-------------------------+
+
+
+--------------------------------------------------------------------------------
+4. EXACT CLI CONFIGURATION COMMANDS
+--------------------------------------------------------------------------------
+
+--------------------------------------------------
+ROUTER 1: 2621A
+--------------------------------------------------
+Router> enable
+Router# configure terminal
+Router(config)# hostname 2621A
+
+! Interface Setup
+2621A(config)# interface fastEthernet 0/0
+2621A(config-if)# ip address 172.16.10.1 255.255.255.0
+2621A(config-if)# no shutdown
+2621A(config-if)# exit
+
+! OSPF Configuration (1 network line)
+2621A(config)# router ospf 1
+2621A(config-router)# network 172.16.10.0 0.0.0.255 area 0
+2621A(config-router)# exit
+2621A(config)# exit
+2621A# copy running-config startup-config
+
+--------------------------------------------------
+ROUTER 2: 2501A
+--------------------------------------------------
+Router> enable
+Router# configure terminal
+Router(config)# hostname 2501A
+
+! Interface Setup
+2501A(config)# interface fastEthernet 0/0
+2501A(config-if)# ip address 172.16.10.2 255.255.255.0
+2501A(config-if)# no shutdown
+2501A(config-if)# exit
+
+2501A(config)# interface serial 0/0
+2501A(config-if)# ip address 172.16.20.1 255.255.255.0
+2501A(config-if)# clock rate 64000
+2501A(config-if)# no shutdown
+2501A(config-if)# exit
+
+! OSPF Configuration (2 network lines)
+2501A(config)# router ospf 1
+2501A(config-router)# network 172.16.10.0 0.0.0.255 area 0
+2501A(config-router)# network 172.16.20.0 0.0.0.255 area 0
+2501A(config-router)# exit
+2501A(config)# exit
+2501A# copy running-config startup-config
+
+--------------------------------------------------
+ROUTER 3: 2501B
+--------------------------------------------------
+Router> enable
+Router# configure terminal
+Router(config)# hostname 2501B
+
+! Interface Setup
+2501B(config)# interface serial 0/0
+2501B(config-if)# ip address 172.16.20.2 255.255.255.0
+2501B(config-if)# no shutdown
+2501B(config-if)# exit
+
+2501B(config)# interface fastEthernet 0/0
+2501B(config-if)# ip address 172.16.30.1 255.255.255.0
+2501B(config-if)# no shutdown
+2501B(config-if)# exit
+
+2501B(config)# interface serial 0/1
+2501B(config-if)# ip address 172.16.40.1 255.255.255.0
+2501B(config-if)# clock rate 64000
+2501B(config-if)# no shutdown
+2501B(config-if)# exit
+
+! OSPF Configuration (3 network lines)
+2501B(config)# router ospf 1
+2501B(config-router)# network 172.16.20.0 0.0.0.255 area 0
+2501B(config-router)# network 172.16.30.0 0.0.0.255 area 0
+2501B(config-router)# network 172.16.40.0 0.0.0.255 area 0
+2501B(config-router)# exit
+2501B(config)# exit
+2501B# copy running-config startup-config
+
+--------------------------------------------------
+ROUTER 4: 2501C
+--------------------------------------------------
+Router> enable
+Router# configure terminal
+Router(config)# hostname 2501C
+
+! Interface Setup
+2501C(config)# interface serial 0/0
+2501C(config-if)# ip address 172.16.40.2 255.255.255.0
+2501C(config-if)# no shutdown
+2501C(config-if)# exit
+
+2501C(config)# interface fastEthernet 0/0
+2501C(config-if)# ip address 172.16.50.1 255.255.255.0
+2501C(config-if)# no shutdown
+2501C(config-if)# exit
+
+! OSPF Configuration (2 network lines)
+2501C(config)# router ospf 1
+2501C(config-router)# network 172.16.40.0 0.0.0.255 area 0
+2501C(config-router)# network 172.16.50.0 0.0.0.255 area 0
+2501C(config-router)# exit
+2501C(config)# exit
+2501C# copy running-config startup-config
+
+
+--------------------------------------------------------------------------------
+5. VERIFICATION, TROUBLESHOOTING & DEEP ANALYSIS
+--------------------------------------------------------------------------------
+
+A. OSPF Neighbor Verification:
+Command:
+2621A# show ip ospf neighbor
+
+Neighbor Table Fields:
+- Neighbor ID : The router ID of the neighboring router (highest active loopback 
+                or physical IP).
+- Pri         : Priority (used in DR/BDR election on multi-access links).
+- State       : MUST show 'FULL/ -'. 'FULL' confirms that LSDB synchronization 
+                is complete.
+- Dead Time   : Countdown timer tracking how long before neighbor is dropped if 
+                no Hello is received.
+- Address     : The neighbor's interface IP on the common link.
+- Interface   : Local egress port connecting to that neighbor.
+
+B. The "Missing Subnet" Troubleshooting:
+Problem:
+Running 'show ip route' on 2621A initially shows only 3 subnets (10.0, 20.0, 40.0). 
+LAN networks 30.0 and 50.0 are missing, and ping to 30.1 / 50.1 fails!
+
+Cause:
+Checking 'show ip interface brief' on 2501B and 2501C reveals that Fa0/0 is 
+status: "down", protocol: "down".
+OSPF rule: An interface will NEVER participate in OSPF or be advertised in LSAs 
+unless its operational status is UP/UP. An Ethernet port remains down without an 
+active link carrier from an attached partner device.
+
+Solution:
+1. Connect PC-B to 2501B (Fa0/0) and PC-C to 2501C (Fa0/0) using copper crossover cables.
+2. Assign IP, mask, and gateway on both PCs.
+3. Interfaces transition to UP/UP. OSPF floods new LSAs, SPF recalculates, and 
+   the routes populate on 2621A.
+
+C. Routing Table Verification:
+Command:
+2621A# show ip route
+
+Output:
+Codes: C - connected, S - static, R - RIP, O - OSPF
+Gateway of last resort is not set
+
+C    172.16.10.0/24 is directly connected, FastEthernet0/0
+O    172.16.20.0/24 [110/65] via 172.16.10.2, FastEthernet0/0
+O    172.16.30.0/24 [110/66] via 172.16.10.2, FastEthernet0/0
+O    172.16.40.0/24 [110/129] via 172.16.10.2, FastEthernet0/0
+O    172.16.50.0/24 [110/130] via 172.16.10.2, FastEthernet0/0
+
+Interpretation:
+- 'O'       : Route learned dynamically via OSPF.
+- '110'     : Administrative Distance of OSPF.
+- '66', '130': Cumulative path cost (e.g., FastEthernet cost 1 + Serial link cost 64 = 65).
+- 'via 172.16.10.2': Next-hop IP of neighbor 2501A.
+
+D. Ping Verification:
+Test from 2621A:
+2621A# ping 172.16.30.2
+Output: .!!!! (80% first run due to ARP, followed by 100% !!!!!)
+
+2621A# ping 172.16.50.2
+Output: !!!!! (100% success rate across all 4 routers)
+
+
+--------------------------------------------------------------------------------
+6. TOP VIVA QUESTIONS & INSTANT BULLET ANSWERS
+--------------------------------------------------------------------------------
+Q1: What algorithm does OSPF use to find the best path?
+A1: Dijkstra's Shortest Path First (SPF) algorithm, which computes the shortest 
+    path tree from the root node to all destination nodes.
+
+Q2: What is the metric used by OSPF, and how is it calculated?
+A2: Cost. It is calculated as Cost = Reference Bandwidth / Interface Bandwidth 
+    (Default Reference Bandwidth is 10^8 bps or 100 Mbps).
+
+Q3: What does the tuple [110/66] indicate in an OSPF routing table entry?
+A3: 110 is the Administrative Distance of OSPF (trust value). 66 is the cumulative 
+    path cost to reach that destination subnet.
+
+Q4: Why do we use wildcard mask 0.0.0.255 instead of subnet mask 255.255.255.0?
+A4: OSPF uses wildcard masks to evaluate which bits must match. A binary 0 requires 
+    an exact match, while a binary 1 (255) means 'do not care'. 0.0.0.255 matches 
+    all interface IPs whose first three octets match the network ID.
+
+Q5: Is the OSPF process ID required to be identical across all routers?
+A5: No. The process ID in 'router ospf <id>' is locally significant to that router 
+    only. Routers with different process IDs can form adjacencies as long as their 
+    Area ID, subnet, and hello/dead timers match.
+
+Q6: What is the state 'FULL' in 'show ip ospf neighbor'?
+A6: 'FULL' indicates that the routers are fully adjacent and their Link-State 
+    Databases (LSDBs) are completely synchronized.
+
+Q7: What happens when an OSPF link fails?
+A7: When Hello packets stop arriving (Dead Timer expires) or a physical link drops, 
+    the detecting router immediately generates an updated Link-State Advertisement 
+    (LSA), floods it across the area, and every router reruns Dijkstra's algorithm 
+    to recalculate the shortest path.
+================================================================================
